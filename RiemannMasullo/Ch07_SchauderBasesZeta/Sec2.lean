@@ -5,6 +5,7 @@ public import RiemannMasullo.Ch05_ThetaZSpaces.Sec5
 public import RiemannMasullo.Ch06_LocalGlobal.Sec2
 
 import all RiemannMasullo.Ch05_ThetaZSpaces.Sec1
+import all RiemannMasullo.Ch05_ThetaZSpaces.Sec5
 import all RiemannMasullo.Ch03_IdelicZeta.Sec3b
 import all RiemannMasullo.Ch07_SchauderBasesZeta.Sec1a
 
@@ -1374,6 +1375,44 @@ the Euler product. This uses the epsilon normalization of (3.3.1.32). -/
 def sLocalFourierEulerProduct (c : Xₛ) : ℂ :=
   sLocalHeckeL (dualₛ c) / sLocalEpsilonFactor c
 
+private theorem sLocalFourierEulerProduct_eq_zeta_factorization (χ : PontryaginDual Jₛ) (f : ℬₛ) :
+    let c := twistₛ ((circleToComplex).comp χ)
+    ∀ᶠ z : ℂ in codiscrete ℂ,
+      sLocalIdelicZFunction f (c z) = sLocalNormalizedZFunction f (c z) * sLocalHeckeL (c z) := by
+  intro c
+  have hL : Meromorphic (fun z ↦ sLocalHeckeL (c z)) := by
+    intro z
+    simpa only [inv_inv] using ((differentiable_inv_sLocalHeckeL χ).analyticAt z).meromorphicAt.inv
+  apply meromorphic_eq_of_germ (fun z ↦ (sLocalIdelicZFunction_meromorphic f χ).meromorphicOn z trivial)
+    (fun z ↦ ((sLocalNormalizedZFunction_entire f χ) z trivial).meromorphicAt.mul (hL z)) (z := 1)
+  have hpos : ∀ᶠ z in 𝓝[≠] (1 : ℂ), 0 < z.re := nhdsWithin_le_nhds
+    ((isOpen_Ioi.preimage Complex.continuous_re).mem_nhds (show (1 : ℂ) ∈ Complex.re ⁻¹' Ioi 0 by simp))
+  filter_upwards [hpos, nhdsNE_le_codiscrete _ (sLocalNormalizedEigendistribution_gaussian_heckeL_ne_zero χ)]
+    with z hz hne
+  rw [sLocalIdelicZFunction_eq_integral f ⟨χ, z, hz, rfl⟩, sLocalNormalizedZFunction_eq_div f χ hz,
+    div_mul_cancel₀ _ hne]
+
+private theorem sLocalFourierEulerProduct_eq_zeta_of_normalized (χ : PontryaginDual Jₛ)
+    (f : ℬₛ) (M : ℂ) :
+    let c := twistₛ ((circleToComplex).comp χ)
+    ∀ᶠ z : ℂ in codiscrete ℂ, sLocalNormalizedZFunction f (c z) = M →
+      sLocalIdelicZFunction (sAdeleSchwartzFourier f) (dualₛ (c z)) =
+        M * sLocalFourierEulerProduct (c z) := by
+  intro c
+  apply eventually_codiscrete_iff_forall_eventually_nhdsNE.mpr
+  intro s
+  have ht : Tendsto (fun z : ℂ ↦ 1 - z) (𝓝[≠] s) (𝓝[≠] (1 - s)) := by
+    apply tendsto_nhdsWithin_of_tendsto_nhds_of_eventually_within
+    · exact (continuous_const.sub continuous_id).continuousAt.tendsto.mono_left nhdsWithin_le_nhds
+    · filter_upwards [self_mem_nhdsWithin] with z hz using fun h ↦ hz (sub_right_inj.mp h)
+  filter_upwards [ht.eventually (nhdsNE_le_codiscrete _
+    (sLocalFourierEulerProduct_eq_zeta_factorization χ⁻¹ (sAdeleSchwartzFourier f)))] with z hz
+  intro hM
+  have hdual := sLocal_dual_chart χ z
+  rw [← hdual] at hz
+  rw [hz, ← hM, sLocalNormalizedZFunction_functionalEquation f (c z), sLocalFourierEulerProduct]
+  field_simp [sLocalEpsilonFactor_ne_zero (c z)] <;> ring
+
 /-- Paper: Equation (7.2.1.12), p. 336.
 If an S-adelic test has the Euler product as its zeta transform on a component,
 its Fourier transform on the reflected component gives the Fourier Euler product.
@@ -1382,7 +1421,20 @@ theorem sLocalFourierEulerProduct_eq_zeta (c : Xₛ) (f : ℬₛ)
     (hf : (fun z : ℂ ↦ sLocalIdelicZFunction f (twistₛ c z)) =ᶠ[codiscrete ℂ]
       (fun z ↦ sLocalHeckeL (twistₛ c z))) :
     (fun z : ℂ ↦ sLocalIdelicZFunction (sAdeleSchwartzFourier f) (dualₛ (twistₛ c z)))
-      =ᶠ[codiscrete ℂ] (fun z ↦ sLocalFourierEulerProduct (twistₛ c z)) := by sorry
+      =ᶠ[codiscrete ℂ] (fun z ↦ sLocalFourierEulerProduct (twistₛ c z)) := by
+  obtain ⟨χ, a, rfl⟩ := exists_sLocalNormTwist (F := F) (S := S) c
+  simp only [normTwist_normTwist] at hf ⊢
+  apply eventually_codiscrete_iff_forall_eventually_nhdsNE.mpr
+  intro s
+  have ht : Tendsto (fun z : ℂ ↦ z + a) (𝓝[≠] s) (𝓝[≠] (s + a)) :=
+    ((Homeomorph.addRight a).map_punctured_nhds_eq s).le
+  filter_upwards [nhdsNE_le_codiscrete s hf,
+    ht.eventually (nhdsNE_le_codiscrete _ (sLocalFourierEulerProduct_eq_zeta_factorization χ f)),
+    ht.eventually (nhdsNE_le_codiscrete _ (sLocalNormalizedEigendistribution_gaussian_heckeL_ne_zero χ)),
+    ht.eventually (nhdsNE_le_codiscrete _ (sLocalFourierEulerProduct_eq_zeta_of_normalized χ f 1))]
+    with z hZ hfactor hne hFourier
+  simpa only [one_mul] using hFourier
+    (mul_right_cancel₀ hne (hfactor.symm.trans (hZ.trans (one_mul _).symm)))
 
 local notation "finiteUnitMass" => (∏ v : S,
   (((finiteLocalMultiplicativeTamagawaMeasure F v.val)
