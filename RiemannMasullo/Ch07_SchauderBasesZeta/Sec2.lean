@@ -1489,7 +1489,7 @@ theorem sLocalFourierEulerProduct_eq_zeta_standardGaussian
       (hfin v))
   have hspec : finiteUnitMass * sLocalNormalizedEigendistribution (twistₛ c z) f =
       sLocalNormalizedZFunction f (twistₛ c z) := by
-    simpa only [Complex.ofReal_prod] using
+    simpa only [Complex.ofReal_prod, sLocalNormalizedEigendistribution] using
       (existsUnique_sLocalNormalizedEigendistribution (twistₛ c z)).exists.choose_spec f
   rw [← hspec, hG, mul_one]
 
