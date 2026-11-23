@@ -1801,8 +1801,9 @@ theorem sLocalPrincipalPartCoeff_leading_formula (c : Xₛ) (hc : 0 < sLocalRhoP
       dsimp only [N, Function.comp_apply]
       rw [← hca, normTwist_normTwist]
     rw [he]
-    exact ((sLocalNormalizedZFunction_entire f χ) (0 + a) trivial).comp
-      (show AnalyticAt ℂ (fun z : ℂ ↦ z + a) 0 from analyticAt_id.add analyticAt_const)
+    apply AnalyticAt.comp (f := fun z : ℂ ↦ z + a)
+    · exact sLocalNormalizedZFunction_entire f χ (0 + a) trivial
+    · exact analyticAt_id.add analyticAt_const
   have hfactor : ∀ᶠ z in 𝓝[≠] (0 : ℂ), sLocalIdelicZFunction f (twistₛ c z) =
       N z * sLocalHeckeL (twistₛ c z) := by
     have ht : Tendsto (fun z : ℂ ↦ z + a) (𝓝[≠] 0) (𝓝[≠] (0 + a)) :=
