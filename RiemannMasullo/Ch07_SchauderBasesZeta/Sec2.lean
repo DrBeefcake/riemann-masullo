@@ -1609,8 +1609,9 @@ private theorem sLocalThetaPoleBound_zero_equiv_decay_lift (ω : PontryaginDual 
   · rw [sLocalThetaPoleBound_zero_equiv_decay_twist ω χ hres f.val (M f).val (hM f), hf, hp]
     exact inv_mul_cancel_left₀ (Circle.coe_ne_zero _) _
 
-private theorem sLocalThetaPoleBound_zero_equiv_decay_pointEval (I : Set ℝ) (hI : I.Nonempty) (g : Jₛ) :
-    Continuous (fun f : ModulatedExponentialDecay (⟨mₛ, hmₛ⟩ : Jₛ →ₜ* ℝ≥0ˣ) I ↦ f.val g) := by
+private theorem sLocalThetaPoleBound_zero_equiv_decay_pointEval (ω : PontryaginDual J₁)
+    (I : Set ℝ) (hI : I.Nonempty) (g : Jₛ) :
+    Continuous (fun y : sLocalDecayIsotype I ω ↦ y.val.val g) := by
   letI (v : S) : ProperSpace (v.val.adicCompletion F) := properSpace_adicCompletion v.val
   letI (v : S) : SecondCountableTopology (v.val.adicCompletion F) := secondCountable_of_proper
   letI (w : InfinitePlace F) : SecondCountableTopology w.Completion :=
@@ -1626,7 +1627,7 @@ private theorem sLocalThetaPoleBound_zero_equiv_decay_pointEval (I : Set ℝ) (h
   letI : T2Space Jₛ := inferInstance
   letI : SecondCountableTopology Jₛ := inferInstance
   letI : LocallyCompactSpace Jₛ := inferInstance
-  exact continuous_modulatedExponentialDecay_eval ⟨mₛ, hmₛ⟩ I hI g
+  exact (continuous_modulatedExponentialDecay_eval ⟨mₛ, hmₛ⟩ I hI g).comp continuous_subtype_val
 
 /-- A homogeneous theta class has continuous point evaluations by the first coordinate
 of the Čech theta pair. -/
@@ -1639,8 +1640,8 @@ private theorem sLocalThetaPoleBound_zero_equiv_decay_eval (ω : PontryaginDual 
   obtain ⟨U, hU, _⟩ := existsUnique_sLocalCechThetaPair (F := F) (S := S) χ
   refine ⟨fun x ↦ (U x).1.val.val g, ?_, fun f ↦ congrFun (hU f).1 g⟩
   have hpos : (Ioi (0 : ℝ)).Nonempty := ⟨1, zero_lt_one⟩
-  exact (sLocalThetaPoleBound_zero_equiv_decay_pointEval (Ioi 0) hpos g).comp
-    (continuous_subtype_val.comp (continuous_fst.comp U.continuous))
+  exact (sLocalThetaPoleBound_zero_equiv_decay_pointEval _ (Ioi 0) hpos g).comp
+    (continuous_fst.comp U.continuous)
 
 /-- A surjection from a closed subspace of a Fréchet space to a Fréchet space
 is a quotient map if its graph is closed. -/
@@ -1676,6 +1677,28 @@ private theorem sLocalThetaPoleBound_quotientMap_of_closedGraph {E Y : Type*}
     exact not_isMeagre_of_isOpen isOpen_univ univ_nonempty
   exact hopen.isQuotientMap hc hs
 
+private theorem sLocalThetaPoleBound_zero_equiv_decay_closedGraph {X Y ι : Type*}
+    [AddCommGroup X] [Module ℂ X] [TopologicalSpace X]
+    [AddCommGroup Y] [Module ℂ Y] [TopologicalSpace Y]
+    (A : X →ₗ[ℂ] Y) (e : ι → Y → ℂ)
+    (hsep : ∀ y z : Y, (∀ i, e i y = e i z) → y = z)
+    (he : ∀ i, Continuous (e i)) (hs : ∀ i, Continuous (fun x ↦ e i (A x))) :
+    IsClosed (A.graph : Set (X × Y)) := by
+  have hset : (A.graph : Set (X × Y)) = ⋂ i, {p : X × Y | e i p.2 = e i (A p.1)} := by
+    ext p
+    refine ⟨fun h ↦ mem_iInter.mpr fun i ↦ congrArg (e i) ((LinearMap.mem_graph_iff A p).mp h), ?_⟩
+    exact fun h ↦ (LinearMap.mem_graph_iff A p).mpr (hsep _ _ fun i ↦ mem_iInter.mp h i)
+  rw [hset]
+  exact isClosed_iInter fun i ↦ isClosed_eq ((he i).comp continuous_snd) ((hs i).comp continuous_fst)
+
+private theorem sLocalThetaPoleBound_zero_equiv_decay_frechet (ω : PontryaginDual J₁) :
+    IsFrechetTVS ↥(sLocalDecayIsotype (F := F) (S := S) univ ω) := by
+  obtain ⟨τ, hτ⟩ := sIdeleQuotientNorm_exists_section F S
+  obtain ⟨M, _, _⟩ := existsUnique_sLocalDecayMellin τ hτ univ isOpen_univ
+    (by infer_instance) univ_nonempty ω 0
+  exact frechet_of_equiv M.symm
+    (schwartzBergman_frechet univ isOpen_univ (by infer_instance) univ_nonempty)
+
 /-- The surjective pointwise theta realization is a quotient map for the two Fréchet
 topologies. Its graph is the intersection of the closed pointwise equalizers. -/
 private theorem sLocalThetaPoleBound_zero_equiv_decay_quotientMap (ω : PontryaginDual J₁)
@@ -1687,34 +1710,19 @@ private theorem sLocalThetaPoleBound_zero_equiv_decay_quotientMap (ω : Pontryag
     (hs : Function.Surjective A) : IsQuotientMap A := by
   let P := sLocalThetaPoleBound ω (fun _ ↦ 0)
   let Y := ↥(sLocalDecayIsotype (F := F) (S := S) univ ω)
-  obtain ⟨τ, hτ⟩ := sIdeleQuotientNorm_exists_section F S
-  obtain ⟨M, _, _⟩ := existsUnique_sLocalDecayMellin τ hτ univ isOpen_univ
-    (by infer_instance) univ_nonempty ω 0
-  have hY : IsFrechetTVS Y := frechet_of_equiv M.symm
-    (schwartzBergman_frechet univ isOpen_univ (by infer_instance) univ_nonempty)
+  have hY := sLocalThetaPoleBound_zero_equiv_decay_frechet ω
   have heval (g : Jₛ) : Continuous (fun y : Y ↦ y.val.val g) :=
-    (sLocalThetaPoleBound_zero_equiv_decay_pointEval univ univ_nonempty g).comp
-      continuous_subtype_val
+    sLocalThetaPoleBound_zero_equiv_decay_pointEval ω univ univ_nonempty g
   have hsrc (g : Jₛ) : Continuous (fun x : P ↦ (A x).val.val g) := by
     obtain ⟨p, hp, hval⟩ := sLocalThetaPoleBound_zero_equiv_decay_eval ω g
     refine (hp.comp continuous_subtype_val).congr fun x ↦ ?_
     obtain ⟨f, hf⟩ := (Kₛ(ω)).mkQ_surjective x.val
     exact (congrArg p hf.symm).trans ((hval f).trans (hA x f hf.symm g).symm)
-  apply sLocalThetaPoleBound_quotientMap_of_closedGraph (sLocalHomogeneousThetaSpace_frechet ω)
+  apply sLocalThetaPoleBound_quotientMap_of_closedGraph (E := Θₛ(ω)) (Y := Y)
+    (sLocalHomogeneousThetaSpace_frechet ω)
     hY P (sLocalThetaPoleBound_isClosed ω _) A hs
-  have heq : (A.graph : Set (P × Y)) =
-      ⋂ g : Jₛ, {q : P × Y | q.2.val.val g = (A q.1).val.val g} := by
-    ext q
-    constructor
-    · intro h
-      exact mem_iInter.mpr fun g ↦
-        congrArg (fun y : Y ↦ y.val.val g) ((LinearMap.mem_graph_iff _ _).mp h)
-    · intro h
-      apply (LinearMap.mem_graph_iff _ _).mpr
-      exact Subtype.ext (Subtype.ext (funext fun g ↦ mem_iInter.mp h g))
-  rw [heq]
-  exact isClosed_iInter fun g ↦ isClosed_eq ((heval g).comp continuous_snd)
-    ((hsrc g).comp continuous_fst)
+  exact sLocalThetaPoleBound_zero_equiv_decay_closedGraph (X := P) (Y := Y) A
+    (fun (g : Jₛ) (y : Y) ↦ y.val.val g) (fun _ _ h ↦ Subtype.ext (Subtype.ext (funext h))) heval hsrc
 
 /-- Paper: Remark 7.2.1.3, p. 335.
 Interpreting a polar-free theta class as its theta function identifies the entire
