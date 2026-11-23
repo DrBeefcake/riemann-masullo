@@ -1699,6 +1699,16 @@ private theorem sLocalThetaPoleBound_zero_equiv_decay_frechet (ω : PontryaginDu
   exact frechet_of_equiv M.symm
     (schwartzBergman_frechet univ isOpen_univ (by infer_instance) univ_nonempty)
 
+private theorem sLocalThetaPoleBound_zero_equiv_decay_continuous_of_representatives
+    {B Q X : Type*} [TopologicalSpace Q] [TopologicalSpace X]
+    (q : B → Q) (hq : Function.Surjective q) (v : X → Q) (hv : Continuous v)
+    (p : Q → ℂ) (hp : Continuous p) (a : X → ℂ) (t : B → ℂ)
+    (ht : ∀ f, p (q f) = t f) (ha : ∀ x f, v x = q f → a x = t f) :
+    Continuous a := by
+  refine (hp.comp hv).congr fun x ↦ ?_
+  obtain ⟨f, hf⟩ := hq (v x)
+  exact (congrArg p hf.symm).trans ((ht f).trans (ha x f hf.symm).symm)
+
 /-- The surjective pointwise theta realization is a quotient map for the two Fréchet
 topologies. Its graph is the intersection of the closed pointwise equalizers. -/
 private theorem sLocalThetaPoleBound_zero_equiv_decay_quotientMap (ω : PontryaginDual J₁)
@@ -1715,11 +1725,11 @@ private theorem sLocalThetaPoleBound_zero_equiv_decay_quotientMap (ω : Pontryag
     sLocalThetaPoleBound_zero_equiv_decay_pointEval ω univ univ_nonempty g
   have hsrc (g : Jₛ) : Continuous (fun x : P ↦ (A x).val.val g) := by
     obtain ⟨p, hp, hval⟩ := sLocalThetaPoleBound_zero_equiv_decay_eval ω g
-    have hpoint (x : P) : p x.val = (A x).val.val g := by
-      obtain ⟨f, hf⟩ : ∃ f : ℬₛ, (Kₛ(ω)).mkQ f = x.val :=
-        (Kₛ(ω)).mkQ_surjective (x.val : Θₛ(ω))
-      exact (congrArg p hf.symm).trans ((hval f).trans (hA x f hf.symm g).symm)
-    exact (hp.comp (continuous_subtype_val : Continuous (fun x : P ↦ x.val))).congr hpoint
+    exact sLocalThetaPoleBound_zero_equiv_decay_continuous_of_representatives
+      (B := ℬₛ) (Q := Θₛ(ω)) (X := ↥P) (Kₛ(ω)).mkQ (Kₛ(ω)).mkQ_surjective
+      (fun x : P ↦ x.val) continuous_subtype_val p hp (fun x : P ↦ (A x).val.val g)
+      (fun f : ℬₛ ↦ sLocalHomogeneousAdelicThetaLinearMap F S ω f g) hval
+      (fun x f hf ↦ hA x f hf g)
   apply sLocalThetaPoleBound_quotientMap_of_closedGraph (E := Θₛ(ω)) (Y := Y)
     (sLocalHomogeneousThetaSpace_frechet ω)
     hY P (sLocalThetaPoleBound_isClosed ω _) A hs
@@ -2156,7 +2166,7 @@ theorem sLocalPrincipalPartCoeff_leading_formula (c : Xₛ) (hc : 0 < sLocalRhoP
     filter_upwards [hfactor, hEuler, self_mem_nhdsWithin] with z hz hL hn
     have hn' : z ≠ 0 := hn
     rw [hz, hL, sub_zero, zpow_add₀ hn', zpow_one, zpow_neg, zpow_natCast]
-    field_simp [hn'] <;> ring
+    field_simp [hn']
   rw [mem_sLocalThetaPoleBound_iff_residue_congr he,
     complexResidue_div_sub (g := fun z ↦ H z * N z) (hH.mul hN), hvalue, hN0]
 
