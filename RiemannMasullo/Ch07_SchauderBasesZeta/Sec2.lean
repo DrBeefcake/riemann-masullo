@@ -1463,7 +1463,35 @@ theorem sLocalFourierEulerProduct_eq_zeta_standardGaussian
     let c : Xₛ := (circleToComplex).comp χ
     let f := sLocalStandardThetaTensor c g
     (fun z : ℂ ↦ sLocalIdelicZFunction (sAdeleSchwartzFourier f) (dualₛ (twistₛ c z)))
-      =ᶠ[codiscrete ℂ] (fun z ↦ finiteUnitMass * sLocalFourierEulerProduct (twistₛ c z)) := by sorry
+      =ᶠ[codiscrete ℂ] (fun z ↦ finiteUnitMass * sLocalFourierEulerProduct (twistₛ c z)) := by
+  classical
+  intro c f
+  have h0 : twistₛ c 0 = c := by
+    ext1 u
+    change c u * _ ^ (0 : ℂ) = c u
+    rw [Complex.cpow_zero, mul_one]
+  filter_upwards [sLocalFourierEulerProduct_eq_zeta_of_normalized χ f finiteUnitMass] with z hz
+  apply hz
+  have hfin (v : S) : finiteStandardGaussian v.val (sLocalFiniteRestriction v c) =
+      finiteStandardGaussian v.val (sLocalFiniteRestriction v (twistₛ c z)) := by
+    obtain ⟨η, he⟩ := sLocalNormalizedEigendistribution_gaussian_finChart χ v
+    have hbase := he 0
+    change sLocalFiniteRestriction v (twistₛ c 0) = _ at hbase
+    rw [h0] at hbase
+    rw [hbase, he z]
+    exact sLocalNormalizedEigendistribution_gaussian_finTest v.val η 0 z
+  have hG := sLocalNormalizedEigendistribution_gaussian χ z χArch hχ f (fun x ↦ by
+    dsimp only [f]
+    rw [sLocalStandardThetaTensor_apply, hg]
+    apply congrArg (_ * ·)
+    exact Finset.prod_congr rfl fun v _ ↦ congrArg
+      (fun q : SchwartzBruhat (Multiplicative (v.val.adicCompletion F)) ↦ q (Multiplicative.ofAdd (x.2 v)))
+      (hfin v))
+  have hspec : finiteUnitMass * sLocalNormalizedEigendistribution (twistₛ c z) f =
+      sLocalNormalizedZFunction f (twistₛ c z) := by
+    simpa only [Complex.ofReal_prod] using
+      (existsUnique_sLocalNormalizedEigendistribution (twistₛ c z)).exists.choose_spec f
+  rw [← hspec, hG, mul_one]
 
 /-- Paper: Equations (7.2.1.12) and (7.2.1.17), pp. 336–337.
 The ratio of the original Euler product to the Fourier Euler product gives the
