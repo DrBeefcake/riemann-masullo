@@ -4,6 +4,8 @@ public import RiemannMasullo.Ch07_SchauderBasesZeta.Sec1b
 public import RiemannMasullo.Ch05_ThetaZSpaces.Sec5
 public import RiemannMasullo.Ch06_LocalGlobal.Sec2
 
+import RiemannMasullo.ForMathlib.Analysis.LocallyConvex.SeparatingDual
+import RiemannMasullo.ForMathlib.Analysis.LocallyConvex.StrongBidual
 import all RiemannMasullo.Ch05_ThetaZSpaces.Sec1
 import all RiemannMasullo.Ch05_ThetaZSpaces.Sec5
 import all RiemannMasullo.Ch03_IdelicZeta.Sec3b
@@ -724,6 +726,31 @@ theorem sLocalThetaPoleBound_isClosed (ω : PontryaginDual J₁) (m : Xₛ → �
       fun hx c hc hp k hk ↦ hx ⟨(c, k), hc, hp, hk⟩⟩
   exact (congrArg IsClosed h).mpr (isClosed_iInter fun i ↦ (T i).isClosed_ker)
 
+private theorem sLocalThetaPoleBound_annihilator_of_kernels {E : Type*} [AddCommGroup E]
+    [Module ℂ E] [TopologicalSpace E] [IsTopologicalAddGroup E] [ContinuousSMul ℂ E]
+    [T2Space E] [PolynormableSpace ℂ E] [MontelSpace ℂ E] (P : Submodule ℂ E)
+    (A : Set (StrongDual ℂ E)) (hP : ∀ x : E, x ∈ P ↔ ∀ T ∈ A, T x = 0) :
+    P.dualAnnihilator.comap (ContinuousLinearMap.coeLM ℂ) = (Submodule.span ℂ A).topologicalClosure := by
+  letI : UniformSpace E := IsTopologicalAddGroup.rightUniformSpace E
+  letI : IsUniformAddGroup E := isUniformAddGroup_of_addCommGroup
+  apply le_antisymm
+  · intro T hT
+    change T.toLinearMap ∈ P.dualAnnihilator at hT
+    by_contra hn
+    obtain ⟨φ, hne, hz⟩ := exists_dual_eq_zero_on_submodule_of_notMem
+      (Submodule.span ℂ A).topologicalClosure (Submodule.span ℂ A).isClosed_topologicalClosure hn
+    obtain ⟨x, rfl⟩ := surjective_strongBidual_eval (E := E) φ
+    have hx : x ∈ P := (hP x).2 fun t ht ↦
+      hz t ((Submodule.span ℂ A).le_topologicalClosure (Submodule.subset_span ht))
+    exact hne ((Submodule.mem_dualAnnihilator T.toLinearMap).mp hT x hx)
+  · intro T hT
+    change T.toLinearMap ∈ P.dualAnnihilator
+    apply (Submodule.mem_dualAnnihilator _).2
+    intro x hx
+    let ev := ContinuousLinearMap.applyₗ (E := E) ℂ (RingHom.id ℂ) x
+    have hA : Submodule.span ℂ A ≤ ev.ker := Submodule.span_le.mpr fun t ht ↦ (hP x).1 hx t ht
+    exact (Submodule.span ℂ A).topologicalClosure_minimal hA ev.isClosed_ker hT
+
 /-- Paper: Theorem 7.2.1.1(4), p. 334.
 The annihilator of the pole-bound subspace is the strong closure of the span of the
 descended coefficients above the bound.
@@ -734,7 +761,19 @@ theorem sLocalThetaPoleBound_annihilator (ω : PontryaginDual J₁) (m : Xₛ �
       (Submodule.span ℂ {T : StrongDual ℂ (Θₛ(ω)) |
         ∃ (c : Xₛ) (hc : onComponent(c, ω)) (k : ℕ),
           0 < sLocalRhoPoleOrder c ∧ m c < k ∧ sLocalThetaPrincipalPartCoeff ω c hc k = T
-      }).topologicalClosure := by sorry
+      }).topologicalClosure := by
+  have hN := sLocalHomogeneousThetaSpace_nuclear (F := F) (S := S) ω
+  letI : T2Space (Θₛ(ω)) := hN.1
+  letI : PolynormableSpace ℂ (Θₛ(ω)) := hN.2.1
+  letI : MontelSpace ℂ (Θₛ(ω)) := (sLocalHomogeneousThetaSpace_montel (F := F) (S := S) ω).2
+  apply sLocalThetaPoleBound_annihilator_of_kernels
+  intro x
+  rw [mem_sLocalThetaPoleBound_iff]
+  constructor
+  · rintro h T ⟨c, hc, k, hp, hk, rfl⟩
+    exact h c hc hp k hk
+  · intro h c hc hp k hk
+    exact h _ ⟨c, hc, k, hp, hk, rfl⟩
 
 local notation "archEuler(" w ", " c ")" =>
   (fun z : ℂ ↦ infiniteLocalEulerFactor w (sLocalInfiniteRestriction w (twistₛ c z)))
