@@ -1641,6 +1641,87 @@ theorem sLocalPrincipalPartCoeff_leading_eigendistribution (c : Xₛ)
   exact h.trans (congrArg (c (QuotientGroup.mk u) * ·)
     (leading _ hc (fun k ↦ sLocalPrincipalPartCoeff c k f) _))
 
+/-- Cauchy's derivative formula identifies a Taylor coefficient with its shifted residue. -/
+private theorem sLocalPrincipalPartCoeff_lower_formula_cauchy {A : ℂ → ℂ}
+    (hA : AnalyticAt ℂ A 0) (j : ℕ) :
+    complexResidue (fun z : ℂ ↦ A z / z ^ (j + 1)) 0 =
+      iteratedDeriv j A 0 / (j.factorial : ℂ) := by
+  obtain ⟨R, hR, hball⟩ := hA.exists_ball_analyticOnNhd
+  unfold complexResidue
+  refine (tendsto_const_nhds.congr' ?_).limUnder_eq
+  filter_upwards [Ioo_mem_nhdsGT hR] with r hr
+  have hd : DifferentiableOn ℂ A (Metric.closedBall 0 r) :=
+    (hball.mono (Metric.closedBall_subset_ball hr.2)).differentiableOn
+  have he : circleIntegral (fun z : ℂ ↦ A z / z ^ (j + 1)) 0 r =
+      (2 * (Real.pi : ℂ) * Complex.I / (j.factorial : ℂ)) * iteratedDeriv j A 0 := by
+    simpa only [sub_zero, one_div, smul_eq_mul, div_eq_inv_mul] using
+      hd.circleIntegral_one_div_sub_center_pow_smul hr.1 j
+  rw [he]
+  field_simp [Real.pi_ne_zero, Complex.I_ne_zero] <;> ring
+
+/-- Apply Leibniz's formula to the analytic numerator after removing a pole of order m.
+The two Cauchy coefficient identities use only the punctured germs. -/
+private theorem sLocalPrincipalPartCoeff_lower_formula_product {Z ρ H : ℂ → ℂ}
+    {m k : ℕ} (hk : k < m) (hρ : MeromorphicAt ρ 0)
+    (hord : meromorphicOrderAt ρ 0 = ((-(m : ℤ) : ℤ) : WithTop ℤ))
+    (hH : AnalyticAt ℂ H 0) (hZ : Z =ᶠ[𝓝[≠] (0 : ℂ)] ρ * H) :
+    complexResidue (fun z : ℂ ↦ Z z / z ^ (-(k : ℤ) + 1)) 0 =
+      ∑ j ∈ Finset.range (m - k + 1),
+        complexResidue (fun z : ℂ ↦ ρ z * z ^ ((m : ℤ) - (j : ℤ) - 1)) 0 *
+          (iteratedDeriv (m - k - j) H 0 / ((m - k - j).factorial : ℂ)) := by
+  obtain ⟨A, hA, -, hrep⟩ := (meromorphicOrderAt_eq_int_iff hρ).mp hord
+  let n := m - k
+  have hmain : (fun z : ℂ ↦ Z z / z ^ (-(k : ℤ) + 1)) =ᶠ[𝓝[≠] (0 : ℂ)]
+      (fun z ↦ (A * H) z / z ^ (n + 1)) := by
+    filter_upwards [hZ, hrep, self_mem_nhdsWithin] with z h₁ h₂ hz
+    have h0 : z ≠ 0 := hz
+    have hex : -(m : ℤ) - (-(k : ℤ) + 1) = -((n + 1 : ℕ) : ℤ) := by dsimp [n]; omega
+    rw [h₁, Pi.mul_apply, h₂, sub_zero, smul_eq_mul, Pi.mul_apply]
+    calc
+      _ = (z ^ (-(m : ℤ)) / z ^ (-(k : ℤ) + 1)) * (A z * H z) := by ring
+      _ = _ := by rw [← zpow_sub₀ h0, hex, zpow_neg, zpow_natCast]; ring
+  have hcoeff (j : ℕ) : complexResidue (fun z : ℂ ↦ ρ z * z ^ ((m : ℤ) - (j : ℤ) - 1)) 0 =
+      iteratedDeriv j A 0 / (j.factorial : ℂ) := by
+    refine (mem_sLocalThetaPoleBound_iff_residue_congr (h := fun z : ℂ ↦ A z / z ^ (j + 1)) ?_).trans
+      (sLocalPrincipalPartCoeff_lower_formula_cauchy hA j)
+    filter_upwards [hrep, self_mem_nhdsWithin] with z h₂ hz
+    have h0 : z ≠ 0 := hz
+    rw [h₂, sub_zero, smul_eq_mul, mul_right_comm, ← zpow_add₀ h0,
+      show -(m : ℤ) + ((m : ℤ) - (j : ℤ) - 1) = -((j + 1 : ℕ) : ℤ) by push_cast; ring,
+      zpow_neg, zpow_natCast]
+    ring
+  rw [sLocalPrincipalPartCoeff_translate_congr hmain,
+    sLocalPrincipalPartCoeff_lower_formula_cauchy (hA.mul hH),
+    iteratedDeriv_mul hA.contDiffAt hH.contDiffAt, Finset.sum_div]
+  refine Finset.sum_congr rfl fun j hj ↦ ?_
+  have hjn : j ≤ n := Nat.le_of_lt_succ (Finset.mem_range.mp hj)
+  rw [hcoeff, Nat.cast_choose ℂ hjn]
+  change _ = _ * (iteratedDeriv (n - j) H 0 / _)
+  field_simp <;> ring
+
+/-- The unnormalized Fourier functional equation continued along a unitary norm chart. -/
+private theorem sLocalPrincipalPartCoeff_lower_formula_fe (χ : PontryaginDual Jₛ) (f : ℬₛ) :
+    let c := twistₛ ((circleToComplex).comp χ)
+    (fun z ↦ sLocalIdelicZFunction f (c z)) =ᶠ[codiscrete ℂ]
+      (fun z ↦ sLocalRhoFactor (c z) * sLocalIdelicZFunction (sAdeleSchwartzFourier f) (dualₛ (c z))) := by
+  intro c
+  let g := sAdeleSchwartzFourier f
+  let d := twistₛ ((circleToComplex).comp χ⁻¹)
+  have hd (z : ℂ) : dualₛ (c z) = d (1 - z) := sLocal_dual_chart χ z
+  simp only [hd]
+  apply meromorphic_eq_of_germ (fun z ↦ (sLocalIdelicZFunction_meromorphic f χ).meromorphicOn z trivial)
+    (fun z ↦ (sLocalRhoFactor_meromorphic χ z).mul
+      (((sLocalIdelicZFunction_meromorphic g χ⁻¹).meromorphicOn (1 - z) trivial).comp_analyticAt
+        (g := fun u : ℂ ↦ 1 - u) (by fun_prop))) (z := 1 / 2)
+  have hs : ∀ᶠ z : ℂ in 𝓝[≠] (1 / 2 : ℂ), z.re ∈ Ioo (0 : ℝ) 1 := nhdsWithin_le_nhds
+    ((isOpen_Ioo.preimage Complex.continuous_re).mem_nhds (by norm_num [mem_preimage, mem_Ioo]))
+  filter_upwards [hs] with z hz
+  have hpos : 0 < (1 - z).re := by simpa using sub_pos.mpr hz.2
+  change sLocalIdelicZFunction f (c z) = sLocalRhoFactor (c z) * sLocalIdelicZFunction g (d (1 - z))
+  rw [sLocalIdelicZFunction_eq_integral f ⟨χ, z, hz.1, rfl⟩,
+    sLocalIdelicZFunction_eq_integral g ⟨χ⁻¹, 1 - z, hpos, rfl⟩, ← hd]
+  exact sLocalIdelicZetaIntegral_functionalEquation f χ z hz
+
 /-- Paper: Theorem 7.2.1.4(2), p. 337.
 Each lower coefficient is a convolution of Laurent coefficients of the correcting
 factor with Taylor coefficients of the reflected zeta function of the Fourier test.
@@ -1656,7 +1737,56 @@ theorem sLocalPrincipalPartCoeff_lower_formula (c : Xₛ) (f : ℬₛ) (k : ℕ)
           z ^ ((m : ℤ) - (j : ℤ) - 1)) 0 *
         (iteratedDeriv (m - k - j)
           (fun z ↦ sLocalIdelicZFunction (sAdeleSchwartzFourier f) (dualₛ (twistₛ c z))) 0 /
-          ((m - k - j).factorial : ℂ)) := by sorry
+          ((m - k - j).factorial : ℂ)) := by
+  intro m
+  let ρ : ℂ → ℂ := fun z ↦ sLocalRhoFactor (twistₛ c z)
+  let H : ℂ → ℂ := fun z ↦ sLocalIdelicZFunction (sAdeleSchwartzFourier f) (dualₛ (twistₛ c z))
+  let Z : ℂ → ℂ := fun z ↦ sLocalIdelicZFunction f (twistₛ c z)
+  have hb := sLocalIdelicOrderBound_eq_neg_poleOrder c
+  have hm : 0 < m := lt_of_le_of_lt (Nat.zero_le _) hk
+  have hneg : sLocalIdelicOrderBound c < 0 := by
+    rw [hb]
+    exact_mod_cast (show -(m : ℤ) < 0 by omega)
+  have hord : meromorphicOrderAt ρ 0 = ((-(m : ℤ) : ℤ) : WithTop ℤ) := by
+    change min 0 (meromorphicOrderAt ρ 0) = _ at hb
+    change min 0 (meromorphicOrderAt ρ 0) < 0 at hneg
+    have hlt := (min_lt_iff.mp hneg).resolve_left (lt_irrefl _)
+    simpa only [min_eq_right hlt.le] using hb
+  obtain ⟨χ, a, hca⟩ := exists_sLocalNormTwist (F := F) (S := S) c
+  let b := twistₛ ((circleToComplex).comp χ)
+  have shift (z : ℂ) : twistₛ c z = b (z + a) := by
+    rw [← hca]
+    exact normTwist_normTwist mₛ hmₛ ((circleToComplex).comp χ) a z
+  have hρ : MeromorphicAt ρ 0 := by
+    have e : ρ = (fun u ↦ sLocalRhoFactor (b u)) ∘ (fun z ↦ z + a) :=
+      funext fun z ↦ congrArg sLocalRhoFactor (shift z)
+    rw [e]
+    exact (sLocalRhoFactor_meromorphic χ (0 + a)).comp_analyticAt (g := fun z : ℂ ↦ z + a) (by fun_prop)
+  have hnonpos : a.re ≤ 0 := le_of_not_gt fun h ↦ (not_le_of_gt hneg) (hca ▸ sLocalOrderBound_positive χ h)
+  have hpos : 0 < (1 - a).re := by simp only [Complex.sub_re, Complex.one_re]; linarith
+  have hH : AnalyticAt ℂ H 0 := by
+    let d := twistₛ ((circleToComplex).comp χ⁻¹)
+    let Y : ℂ → ℂ := fun u ↦ sLocalIdelicZFunction (sAdeleSchwartzFourier f) (d u)
+    have hY : AnalyticAt ℂ Y (1 - a) :=
+      sLocalZLaurentCoeff_continuous_linear_analytic (sAdeleSchwartzFourier f)
+        ((circleToComplex).comp χ⁻¹) (1 - a) (sLocalOrderBound_positive χ⁻¹ hpos)
+    have e : H = Y ∘ (fun z ↦ 1 - (z + a)) := by
+      funext z
+      change sLocalIdelicZFunction _ (dualₛ (twistₛ c z)) = _
+      rw [shift]
+      exact congrArg (sLocalIdelicZFunction (sAdeleSchwartzFourier f)) (sLocal_dual_chart χ (z + a))
+    rw [e]
+    exact hY.comp_of_eq (by fun_prop) (by simp)
+  have hZ : Z =ᶠ[𝓝[≠] (0 : ℂ)] ρ * H := by
+    have ht : Tendsto (fun z : ℂ ↦ z + a) (𝓝[≠] 0) (𝓝[≠] (0 + a)) :=
+      ((Homeomorph.addRight a).map_punctured_nhds_eq 0).le
+    filter_upwards [ht.eventually (nhdsNE_le_codiscrete _ (sLocalPrincipalPartCoeff_lower_formula_fe χ f))]
+      with z hz
+    change sLocalIdelicZFunction f (twistₛ c z) = sLocalRhoFactor (twistₛ c z) * H z
+    dsimp only [H]
+    rw [shift]
+    exact hz
+  exact sLocalPrincipalPartCoeff_lower_formula_product (ρ := ρ) (H := H) (Z := Z) hk hρ hord hH hZ
 
 section LocalPolesGlobalZeros
 
