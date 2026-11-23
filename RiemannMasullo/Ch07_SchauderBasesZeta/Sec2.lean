@@ -1345,6 +1345,28 @@ theorem sLocalThetaRemovedPrincipalParts_quotient (ω : PontryaginDual J₁)
 -- Theorem 7.3.1.2 includes the archimedean places in S₀, whereas §5.3.1
 -- supplies principal values at finite places.
 
+private theorem sLocalThetaPoleBound_zero_chart (ω : PontryaginDual J₁) :
+    ∃ χ : PontryaginDual Jₛ,
+      (∀ z : ℂ, onComponent(twistₛ ((circleToComplex).comp χ) z, ω)) ∧
+      ∀ d : Xₛ, onComponent(d, ω) → ∃ z : ℂ, twistₛ ((circleToComplex).comp χ) z = d := by
+  obtain ⟨σ, hσ⟩ := sIdeleQuotientNorm_exists_section F S
+  obtain ⟨χ, hu, ht⟩ := exists_character_on_split mₛ hmₛ σ hσ ω 1
+  refine ⟨χ, fun z ↦ ContinuousMonoidHom.ext fun u ↦
+    (normOneRestriction_unitaryChart mₛ hmₛ χ z u).trans (congrArg Subtype.val (hu u)), ?_⟩
+  intro d hd
+  obtain ⟨z, hz, -⟩ := existsUnique_complexPower (d.comp σ)
+  refine ⟨z, ContinuousMonoidHom.ext fun g ↦ ?_⟩
+  let t := mₛ g
+  let k : J₁ := ⟨g / σ t, by change mₛ (g / σ t) = 1; rw [map_div, hσ]; exact div_self' _⟩
+  have hg : k.val * σ t = g := div_mul_cancel _ _
+  have hχg : χ g = ω k := by
+    calc χ g = χ k.val * χ (σ t) := (congrArg χ hg.symm).trans (map_mul χ _ _)
+         _ = ω k := by rw [hu, ht]; exact mul_one _
+  have hdk : d k.val = (ω k : ℂ) := DFunLike.congr_fun hd k
+  have hdt : d (σ t) = (((t : ℝ≥0) : ℝ) : ℂ) ^ z := hz t
+  change (χ g : ℂ) * (((t : ℝ≥0) : ℝ) : ℂ) ^ z = d g
+  rw [hχg, ← hdk, ← hdt, ← map_mul, hg]
+
 /-- Paper: Remark 7.2.1.3, p. 335.
 The theta image of the coordinatewise polar-free tests is the subspace with
 entire Mellin transform.
@@ -1354,7 +1376,38 @@ theorem sLocalThetaPoleBound_zero (ω : PontryaginDual J₁)
       {e : w.val.Completion ≃+* ℝ // IsHomeomorph (e : w.val.Completion → ℝ)})
     (c : (w : {w : InfinitePlace F // w.IsComplex}) →
       {e : w.val.Completion ≃+* ℂ // IsHomeomorph (e : w.val.Completion → ℂ)}) :
-    sLocalThetaPoleBound ω (fun _ ↦ 0) = (sAdelePolarFree S r c).map (Kₛ(ω)).mkQ := by sorry
+    sLocalThetaPoleBound ω (fun _ ↦ 0) = (sAdelePolarFree S r c).map (Kₛ(ω)).mkQ := by
+  obtain ⟨χ, hcomp, hcover⟩ := sLocalThetaPoleBound_zero_chart (F := F) (S := S) ω
+  let chart := twistₛ ((circleToComplex).comp χ)
+  have analytic (f : ℬₛ) (s : ℂ) : sLocalPolarMultiplicity f (chart s) = 0 ↔
+      AnalyticAt ℂ (fun z ↦ sLocalIdelicZFunction f (chart z)) s := by
+    rw [sLocalPolarMultiplicity_eq_zero_iff]
+    let Z : ℂ → ℂ := fun z ↦ sLocalIdelicZFunction f (chart z)
+    have shift : (fun z : ℂ ↦ sLocalIdelicZFunction f (twistₛ (chart s) z)) =
+        fun z ↦ Z (z + s) := funext fun z ↦ congrArg (sLocalIdelicZFunction f)
+          (normTwist_normTwist mₛ hmₛ ((circleToComplex).comp χ) s z)
+    rw [shift, meromorphicOrderAt_fun_comp_add_const_eq_meromorphicOrderAt, zero_add]
+    exact (sLocalIdelicZFunction_meromorphic f χ (Set.mem_univ s)).meromorphicOrderAt_nonneg_iff_analyticAt
+  apply le_antisymm
+  · refine Submodule.span_le.mpr ?_
+    rintro _ ⟨f, rfl, hf⟩
+    have ha : AnalyticOnNhd ℂ (fun s ↦ sLocalIdelicZFunction f (chart s)) univ :=
+      fun s _ ↦ (analytic f s).mp (Nat.le_zero.mp (hf (chart s) (hcomp s)))
+    obtain ⟨g, he⟩ := (sLocalIdelicZFunction_entire_iff_eq_polarFree r c χ f).mp ha
+    refine ⟨g.val, g.property, (Submodule.Quotient.eq (Kₛ(ω))).mpr ?_⟩
+    apply (mem_sLocalHomogeneousAdelicTheta_ker_iff ω (g.val - f)).mpr
+    intro d hd
+    obtain ⟨z, hz⟩ := hcover d.val (ContinuousMonoidHom.ext hd)
+    rw [map_sub]
+    change sLocalIdelicZFunction g.val d.val - sLocalIdelicZFunction f d.val = 0
+    rw [← hz]
+    exact sub_eq_zero.mpr (he z).symm
+  · rintro _ ⟨f, hf, rfl⟩
+    refine Submodule.subset_span ⟨f, rfl, fun d hd ↦ ?_⟩
+    obtain ⟨z, rfl⟩ := hcover d hd
+    have ha := (sLocalIdelicZFunction_entire_iff_eq_polarFree r c χ f).2
+      ⟨⟨f, hf⟩, fun _ ↦ rfl⟩
+    exact ((analytic f z).mpr (ha z (Set.mem_univ z))).le
 
 /-- Paper: Remark 7.2.1.3, p. 335.
 Interpreting a polar-free theta class as its theta function identifies the entire
