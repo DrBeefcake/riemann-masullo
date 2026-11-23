@@ -1654,7 +1654,7 @@ private theorem sLocalPrincipalPartCoeff_lower_formula_cauchy {A : ℂ → ℂ}
     (hball.mono (Metric.closedBall_subset_ball hr.2)).differentiableOn
   have he : circleIntegral (fun z : ℂ ↦ A z / z ^ (j + 1)) 0 r =
       (2 * (Real.pi : ℂ) * Complex.I / (j.factorial : ℂ)) * iteratedDeriv j A 0 := by
-    simpa only [sub_zero, one_div, smul_eq_mul, div_eq_inv_mul] using
+    simpa only [sub_zero, one_div, smul_eq_mul, div_eq_inv_mul, mul_one] using
       hd.circleIntegral_one_div_sub_center_pow_smul hr.1 j
   rw [he]
   field_simp [Real.pi_ne_zero, Complex.I_ne_zero] <;> ring
@@ -1696,8 +1696,12 @@ private theorem sLocalPrincipalPartCoeff_lower_formula_product {Z ρ H : ℂ →
   refine Finset.sum_congr rfl fun j hj ↦ ?_
   have hjn : j ≤ n := Nat.le_of_lt_succ (Finset.mem_range.mp hj)
   rw [hcoeff, Nat.cast_choose ℂ hjn]
-  change _ = _ * (iteratedDeriv (n - j) H 0 / _)
-  field_simp <;> ring
+  change _ = (iteratedDeriv j A 0 / (j.factorial : ℂ)) *
+    (iteratedDeriv (n - j) H 0 / ((n - j).factorial : ℂ))
+  have hn : (n.factorial : ℂ) ≠ 0 := by exact_mod_cast n.factorial_ne_zero
+  have hj' : (j.factorial : ℂ) ≠ 0 := by exact_mod_cast j.factorial_ne_zero
+  have hd : ((n - j).factorial : ℂ) ≠ 0 := by exact_mod_cast (n - j).factorial_ne_zero
+  field_simp [hn, hj', hd] <;> ring
 
 /-- The unnormalized Fourier functional equation continued along a unitary norm chart. -/
 private theorem sLocalPrincipalPartCoeff_lower_formula_fe (χ : PontryaginDual Jₛ) (f : ℬₛ) :
@@ -1718,9 +1722,10 @@ private theorem sLocalPrincipalPartCoeff_lower_formula_fe (χ : PontryaginDual J
   filter_upwards [hs] with z hz
   have hpos : 0 < (1 - z).re := by simpa using sub_pos.mpr hz.2
   change sLocalIdelicZFunction f (c z) = sLocalRhoFactor (c z) * sLocalIdelicZFunction g (d (1 - z))
-  rw [sLocalIdelicZFunction_eq_integral f ⟨χ, z, hz.1, rfl⟩,
-    sLocalIdelicZFunction_eq_integral g ⟨χ⁻¹, 1 - z, hpos, rfl⟩, ← hd]
-  exact sLocalIdelicZetaIntegral_functionalEquation f χ z hz
+  exact (sLocalIdelicZFunction_eq_integral f ⟨χ, z, hz.1, rfl⟩).trans <|
+    (sLocalIdelicZetaIntegral_functionalEquation f χ z hz).trans <|
+      congrArg (sLocalRhoFactor (c z) * ·) ((congrArg (sLocalIdelicZetaIntegral g) (hd z)).trans
+        (sLocalIdelicZFunction_eq_integral g ⟨χ⁻¹, 1 - z, hpos, rfl⟩).symm)
 
 /-- Paper: Theorem 7.2.1.4(2), p. 337.
 Each lower coefficient is a convolution of Laurent coefficients of the correcting
