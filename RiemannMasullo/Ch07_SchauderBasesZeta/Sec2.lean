@@ -9,6 +9,7 @@ import RiemannMasullo.ForMathlib.Analysis.LocallyConvex.SeparatingDual
 import RiemannMasullo.ForMathlib.Analysis.LocallyConvex.StrongBidual
 import all RiemannMasullo.Ch05_ThetaZSpaces.Sec1
 import all RiemannMasullo.Ch05_ThetaZSpaces.Sec5
+import all RiemannMasullo.Ch05_ThetaZSpaces.Sec3b
 import all RiemannMasullo.Ch03_IdelicZeta.Sec3b
 import all RiemannMasullo.Ch07_SchauderBasesZeta.Sec1a
 
@@ -1608,6 +1609,167 @@ theorem sLocalRhoFactor_eq_div_fourierEulerProduct (c : Xₛ) :
 -- TODO(paper-gap): The change of unitary base point on p. 336 is
 -- χ' = χ |·|^(it₀). The printed identity omits the original base point χ.
 
+/-- The geometric denominator of a finite Euler factor has only simple zeros.
+Ramified finite Euler factors are identically one. -/
+private theorem sLocalPrincipalPartCoeff_leading_formula_fin_factor (c : Xₛ) (v : S) :
+    MeromorphicNFAt (finEuler(v, c)) 0 ∧
+      ((-1 : ℤ) : WithTop ℤ) ≤ meromorphicOrderAt (finEuler(v, c)) 0 := by
+  classical
+  obtain ⟨χ, a, rfl⟩ := exists_sLocalNormTwist (F := F) (S := S) c
+  obtain ⟨η, hη, -⟩ := sLocalFinite_charts χ v
+  let C := quasiCharacterNormTwist (Units.map nnNormHom.toMonoidHom :
+    (v.val.adicCompletion F)ˣ →* ℝ≥0ˣ) (continuous_finiteLocalModule v.val) ((circleToComplex).comp η)
+  let E : ℂ → ℂ := fun z ↦ finiteLocalEulerFactor v.val (C z)
+  have hshift : finEuler(v, twistₛ ((circleToComplex).comp χ) a) = E ∘ (· + a) := by
+    funext z
+    dsimp only [Function.comp_apply, E]
+    rw [normTwist_normTwist, hη]
+  rw [hshift, meromorphicOrderAt_comp_add_const_eq_meromorphicOrderAt]
+  suffices h : ∀ s, MeromorphicNFAt E s ∧ ((-1 : ℤ) : WithTop ℤ) ≤ meromorphicOrderAt E s by
+    exact ⟨(h (0 + a)).1.comp_analyticAt (by fun_prop), (h (0 + a)).2⟩
+  intro s
+  let ι := Units.map (v.val.adicCompletionIntegers F).subtype.toMonoidHom
+  have hu (z : ℂ) (u : (v.val.adicCompletionIntegers F)ˣ) : C z (ι u) = (η (ι u) : ℂ) := by
+    change (η _ : ℂ) * (‖(ι u).val‖ : ℂ) ^ z = _
+    rw [show ‖(ι u).val‖ = 1 from finite_integer_unit_norm v.val u,
+      Complex.ofReal_one, Complex.one_cpow, mul_one]
+  have hram (z : ℂ) : (∀ u, C z (ι u) = 1) ↔ (∀ u, (η (ι u) : ℂ) = 1) :=
+    ⟨fun h u ↦ (hu z u).symm.trans (h u), fun h u ↦ (hu z u).trans (h u)⟩
+  have hneg : ((-1 : ℤ) : WithTop ℤ) ≤ 0 := WithTop.coe_le_coe.mpr (by decide : (-1 : ℤ) ≤ 0)
+  by_cases h : ∀ u, (η (ι u) : ℂ) = 1
+  · let hp := (Valued.v : Valuation (v.val.adicCompletion F)
+      (WithZero (Multiplicative ℤ))).exists_isUniformizer_of_isCyclic_of_nontrivial
+    let p : (v.val.adicCompletion F)ˣ := Units.mk0 hp.choose hp.choose_spec.ne_zero
+    have hpn : ‖p.val‖ = (v.val.asIdeal.absNorm : ℝ)⁻¹ :=
+      norm_uniformizer_adicCompletion v.val _ hp.choose_spec
+    let D : ℂ → ℂ := fun z ↦ 1 - C z p
+    have he : E = D⁻¹ := by
+      funext z
+      dsimp only [E, finiteLocalEulerFactor]
+      rw [if_pos ((hram z).mpr h)] <;> rfl
+    have hD : Differentiable ℂ D := fun z ↦ (finite_den_hasDerivAt v.val η p hpn z).differentiableAt
+    rw [he]
+    refine ⟨(hD.analyticAt s).meromorphicNFAt.inv, ?_⟩
+    by_cases hz : D s = 0
+    · have hval : C s p = 1 := (sub_eq_zero.mp hz).symm
+      have hq : 1 < (v.val.asIdeal.absNorm : ℝ) := by
+        exact_mod_cast HeightOneSpectrum.one_lt_absNorm v.val
+      have hder : deriv D s ≠ 0 := by
+        rw [show deriv D s = C s p * (Real.log (v.val.asIdeal.absNorm : ℝ) : ℂ) from
+          (finite_den_hasDerivAt v.val η p hpn s).deriv, hval, one_mul]
+        exact Complex.ofReal_ne_zero.mpr (Real.log_pos hq).ne'
+      rw [meromorphicOrderAt_inv, (hD.analyticAt s).meromorphicOrderAt_eq,
+        (hD.analyticAt s).analyticOrderAt_eq_one_of_zero_deriv_ne_zero hz hder]
+      exact le_rfl
+    · exact hneg.trans ((hD.analyticAt s).inv hz).meromorphicOrderAt_nonneg
+  · have he : E = fun _ ↦ 1 := by
+      funext z
+      exact if_neg (fun h' ↦ h ((hram z).mp h'))
+    rw [he]
+    exact ⟨analyticAt_const.meromorphicNFAt, hneg.trans analyticAt_const.meromorphicOrderAt_nonneg⟩
+
+/-- In the centered norm chart the archimedean factors are in meromorphic normal
+form, and their poles have order at most one. -/
+private theorem sLocalPrincipalPartCoeff_leading_formula_arch_factor (c : Xₛ) (w : InfinitePlace F) :
+    MeromorphicNFAt (archEuler(w, c)) 0 ∧
+      ((-1 : ℤ) : WithTop ℤ) ≤ meromorphicOrderAt (archEuler(w, c)) 0 := by
+  obtain ⟨χ, a, rfl⟩ := exists_sLocalNormTwist (F := F) (S := S) c
+  have shift : archEuler(w, twistₛ ((circleToComplex).comp χ) a) =
+      archEuler(w, (circleToComplex).comp χ) ∘ (· + a) := by
+    funext z
+    simp only [Function.comp_apply, normTwist_normTwist]
+  rw [shift, meromorphicNFAt_comp_add_const_iff_meromorphicNFAt,
+    meromorphicOrderAt_comp_add_const_eq_meromorphicOrderAt, zero_add]
+  refine ⟨?_, neg_one_le_meromorphicOrderAt_infiniteLocalEulerFactor_chart χ w a⟩
+  apply meromorphicNFAt_inv.mp
+  by_cases hw : w.IsReal
+  · obtain ⟨b, hb⟩ := infiniteLocalEulerFactor_chart_real χ w hw
+    have he : (archEuler(w, (circleToComplex).comp χ))⁻¹ =
+        fun z ↦ (Complex.Gammaℝ (z + b))⁻¹ := funext fun z ↦ congrArg Inv.inv (hb z)
+    rw [he]
+    exact ((Complex.differentiable_Gammaℝ_inv.comp
+      (show Differentiable ℂ (fun z : ℂ ↦ z + b) by fun_prop)).analyticAt a).meromorphicNFAt
+  · obtain ⟨b, hb⟩ := infiniteLocalEulerFactor_chart_complex χ w
+      (InfinitePlace.not_isReal_iff_isComplex.mp hw)
+    have he : (archEuler(w, (circleToComplex).comp χ))⁻¹ =
+        fun z ↦ 2 * (Complex.Gammaℂ (z + b))⁻¹ := by
+      funext z
+      rw [Pi.inv_apply, hb, inv_div, div_eq_mul_inv]
+    rw [he]
+    exact (analyticAt_const.mul ((Complex.differentiable_Gammaℂ_inv.comp
+      (show Differentiable ℂ (fun z : ℂ ↦ z + b) by fun_prop)).analyticAt a)).meromorphicNFAt
+
+/-- Remove each simple pole at zero from a finite product. The resulting center
+value multiplies the residues at poles and the original values at regular factors. -/
+private theorem sLocalPrincipalPartCoeff_leading_formula_finite_product
+    {ι : Type*} [Fintype ι] [DecidableEq ι] (P : Finset ι) (L : ι → ℂ → ℂ)
+    (hP : ∀ i, i ∈ P ↔ meromorphicOrderAt (L i) 0 < 0)
+    (hL : ∀ i, MeromorphicNFAt (L i) 0 ∧
+      ((-1 : ℤ) : WithTop ℤ) ≤ meromorphicOrderAt (L i) 0) :
+    ∃ H : ℂ → ℂ, AnalyticAt ℂ H 0 ∧
+      H 0 = (∏ i ∈ P, complexResidue (L i) 0) * (∏ i ∈ Finset.univ \ P, L i 0) ∧
+      ∀ᶠ z in 𝓝[≠] (0 : ℂ), H z = z ^ P.card * ∏ i, L i z := by
+  classical
+  have regularize (i : ι) : ∃ G : ℂ → ℂ, AnalyticAt ℂ G 0 ∧
+      G 0 = (if i ∈ P then complexResidue (L i) 0 else L i 0) ∧
+      ∀ᶠ z in 𝓝[≠] (0 : ℂ), G z = (if i ∈ P then z else 1) * L i z := by
+    by_cases hi : i ∈ P
+    · have hp := (hP i).mp hi
+      have ho : meromorphicOrderAt (L i) 0 = ((-1 : ℤ) : WithTop ℤ) := by
+        apply le_antisymm _ (hL i).2
+        generalize he : meromorphicOrderAt (L i) 0 = o at hp ⊢
+        induction o using WithTop.recTopCoe with
+        | top => simp at hp
+        | coe n =>
+          have hn : n < 0 := by exact_mod_cast hp
+          exact_mod_cast (by omega : n ≤ -1)
+      obtain ⟨G, hG, _, he⟩ := (meromorphicOrderAt_eq_int_iff (hL i).1.meromorphicAt).mp ho
+      have hdiv : L i =ᶠ[𝓝[≠] (0 : ℂ)] fun z ↦ G z / (z - 0) := by
+        filter_upwards [he] with z hz
+        rw [hz, smul_eq_mul, zpow_neg_one, div_eq_mul_inv, mul_comm]
+      refine ⟨G, hG, ?_, ?_⟩
+      · rw [if_pos hi, mem_sLocalThetaPoleBound_iff_residue_congr hdiv, complexResidue_div_sub hG]
+      · filter_upwards [hdiv, self_mem_nhdsWithin] with z hz hz0
+        have hne : z ≠ 0 := hz0
+        rw [if_pos hi, hz, sub_zero]
+        field_simp
+    · refine ⟨L i, (hL i).1.meromorphicOrderAt_nonneg_iff_analyticAt.mp
+        (not_lt.mp (mt (hP i).mpr hi)), by simp [hi], .of_forall fun z ↦ by simp [hi]⟩
+  choose G hA h0 he using regularize
+  refine ⟨fun z ↦ ∏ i, G i z, Finset.univ.analyticAt_fun_prod (fun i _ ↦ hA i), ?_, ?_⟩
+  · rw [← Finset.prod_sdiff (f := fun i ↦ G i 0) (Finset.subset_univ P)]
+    rw [Finset.prod_congr (s₁ := Finset.univ \ P) rfl
+      (fun i hi ↦ (h0 i).trans (if_neg (Finset.mem_sdiff.mp hi).2)),
+      Finset.prod_congr (s₁ := P) rfl (fun i hi ↦ (h0 i).trans (if_pos hi))]
+    exact mul_comm _ _
+  · filter_upwards [eventually_all.mpr he] with z hz
+    simp only [hz, Finset.prod_mul_distrib, Finset.prod_ite_mem_eq, Finset.prod_const]
+
+open Classical in
+/-- Multiplying the centered Euler product by its pole power gives an analytic germ.
+Its value at the center is the product of the residues at the polar places and
+the ordinary Euler values at the remaining places, as in (7.2.1.23), p. 338. -/
+private theorem sLocalPrincipalPartCoeff_leading_formula_euler_germ (c : Xₛ) :
+    ∃ H : ℂ → ℂ, AnalyticAt ℂ H 0 ∧
+      H 0 = (∏ w ∈ sLocalArchPolePlaces c, complexResidue (archEuler(w, c)) 0) *
+        (∏ w ∈ Finset.univ \ sLocalArchPolePlaces c, archEuler(w, c) 0) *
+        (∏ v ∈ sLocalFinitePolePlaces c, complexResidue (finEuler(v, c)) 0) *
+        (∏ v ∈ Finset.univ \ sLocalFinitePolePlaces c, finEuler(v, c) 0) ∧
+      ∀ᶠ z in 𝓝[≠] (0 : ℂ), H z = z ^ sLocalRhoPoleOrder c * sLocalHeckeL (twistₛ c z) := by
+  classical
+  obtain ⟨A, hAa, hA0, hAe⟩ := sLocalPrincipalPartCoeff_leading_formula_finite_product
+    (sLocalArchPolePlaces c) (fun w ↦ archEuler(w, c)) (fun w ↦ by simp [sLocalArchPolePlaces])
+    (sLocalPrincipalPartCoeff_leading_formula_arch_factor c)
+  obtain ⟨B, hBa, hB0, hBe⟩ := sLocalPrincipalPartCoeff_leading_formula_finite_product
+    (sLocalFinitePolePlaces c) (fun v ↦ finEuler(v, c)) (fun v ↦ by simp [sLocalFinitePolePlaces])
+    (sLocalPrincipalPartCoeff_leading_formula_fin_factor c)
+  refine ⟨A * B, hAa.mul hBa, ?_, ?_⟩
+  · rw [Pi.mul_apply, hA0, hB0]
+    ring
+  · filter_upwards [hAe, hBe] with z hz hz'
+    rw [Pi.mul_apply, hz, hz', sLocalRhoPoleOrder_eq_card_polePlaces, pow_add, sLocalHeckeL]
+    ring
+
 open Classical in
 /-- Paper: Theorem 7.2.1.4(1), p. 336.
 The coefficient of the highest allowed polar order is the product of local residues
@@ -1624,7 +1786,51 @@ theorem sLocalPrincipalPartCoeff_leading_formula (c : Xₛ) (hc : 0 < sLocalRhoP
       (∏ v ∈ fin, complexResidue (finEuler(v, c)) 0) *
       (∏ v ∈ Finset.univ \ fin, finEuler(v, c) 0) *
       (finiteUnitMass * sLocalEpsilonFactor c *
-        sLocalNormalizedEigendistribution (dualₛ c) (sAdeleSchwartzFourier f)) := by sorry
+        sLocalNormalizedEigendistribution (dualₛ c) (sAdeleSchwartzFourier f)) := by
+  classical
+  dsimp only
+  obtain ⟨H, hH, hvalue, hEuler⟩ := sLocalPrincipalPartCoeff_leading_formula_euler_germ c
+  obtain ⟨χ, a, hca⟩ := exists_sLocalNormTwist (F := F) (S := S) c
+  let N : ℂ → ℂ := fun z ↦ sLocalNormalizedZFunction f (twistₛ c z)
+  have hN : AnalyticAt ℂ N 0 := by
+    have he : N = (fun s ↦ sLocalNormalizedZFunction f (twistₛ ((circleToComplex).comp χ) s)) ∘
+        (fun t ↦ t + a) := by
+      funext t
+      dsimp only [N, Function.comp_apply]
+      rw [← hca, normTwist_normTwist]
+    rw [he]
+    exact ((sLocalNormalizedZFunction_entire f χ) (0 + a) trivial).comp (by fun_prop)
+  have hfactor : ∀ᶠ z in 𝓝[≠] (0 : ℂ), sLocalIdelicZFunction f (twistₛ c z) =
+      N z * sLocalHeckeL (twistₛ c z) := by
+    have ht : Tendsto (fun z : ℂ ↦ z + a) (𝓝[≠] 0) (𝓝[≠] (0 + a)) :=
+      ((Homeomorph.addRight a).map_punctured_nhds_eq 0).le
+    filter_upwards [ht.eventually (nhdsNE_le_codiscrete _
+      (sLocalFourierEulerProduct_eq_zeta_factorization χ f))] with z hz
+    simpa only [N, ← hca, normTwist_normTwist] using hz
+  have hzero : twistₛ c 0 = c := by
+    ext1 u
+    change c u * _ ^ (0 : ℂ) = c u
+    rw [Complex.cpow_zero, mul_one]
+  have hmass : finiteUnitMass * sLocalNormalizedEigendistribution (dualₛ c)
+      (sAdeleSchwartzFourier f) = sLocalNormalizedZFunction (sAdeleSchwartzFourier f) (dualₛ c) := by
+    simpa only [Complex.ofReal_prod, sLocalNormalizedEigendistribution] using
+      (existsUnique_sLocalNormalizedEigendistribution (dualₛ c)).exists.choose_spec (sAdeleSchwartzFourier f)
+  have hN0 : N 0 = finiteUnitMass * sLocalEpsilonFactor c *
+      sLocalNormalizedEigendistribution (dualₛ c) (sAdeleSchwartzFourier f) := by
+    dsimp only [N]
+    rw [hzero, sLocalNormalizedZFunction_functionalEquation, ← hmass]
+    ring
+  change complexResidue (fun z ↦ sLocalIdelicZFunction f (twistₛ c z) /
+    z ^ (-(sLocalRhoPoleOrder c : ℤ) + 1)) 0 = _
+  have he : (fun z ↦ sLocalIdelicZFunction f (twistₛ c z) /
+      z ^ (-(sLocalRhoPoleOrder c : ℤ) + 1)) =ᶠ[𝓝[≠] (0 : ℂ)]
+      (fun z ↦ (H z * N z) / (z - 0)) := by
+    filter_upwards [hfactor, hEuler, self_mem_nhdsWithin] with z hz hL hn
+    have hn' : z ≠ 0 := hn
+    rw [hz, hL, sub_zero, zpow_add₀ hn', zpow_one, zpow_neg, zpow_natCast]
+    field_simp [hn'] <;> ring
+  rw [mem_sLocalThetaPoleBound_iff_residue_congr he,
+    complexResidue_div_sub (g := fun z ↦ H z * N z) (hH.mul hN), hvalue, hN0]
 
 /-- Paper: Theorem 7.2.1.4(1), p. 337.
 The leading principal-part functional transforms with weight given by the center. -/
