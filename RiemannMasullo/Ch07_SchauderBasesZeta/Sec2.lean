@@ -1624,9 +1624,10 @@ private theorem sLocalPrincipalPartCoeff_leading_formula_fin_factor (c : Xₛ) (
     funext z
     dsimp only [Function.comp_apply, E]
     rw [normTwist_normTwist, hη]
-  rw [hshift, meromorphicOrderAt_comp_add_const_eq_meromorphicOrderAt]
+  rw [hshift, meromorphicNFAt_comp_add_const_iff_meromorphicNFAt,
+    meromorphicOrderAt_comp_add_const_eq_meromorphicOrderAt]
   suffices h : ∀ s, MeromorphicNFAt E s ∧ ((-1 : ℤ) : WithTop ℤ) ≤ meromorphicOrderAt E s by
-    exact ⟨(h (0 + a)).1.comp_analyticAt (by fun_prop), (h (0 + a)).2⟩
+    exact h (0 + a)
   intro s
   let ι := Units.map (v.val.adicCompletionIntegers F).subtype.toMonoidHom
   have hu (z : ℂ) (u : (v.val.adicCompletionIntegers F)ˣ) : C z (ι u) = (η (ι u) : ℂ) := by
@@ -1737,7 +1738,8 @@ private theorem sLocalPrincipalPartCoeff_leading_formula_finite_product
         (not_lt.mp (mt (hP i).mpr hi)), by simp [hi], .of_forall fun z ↦ by simp [hi]⟩
   choose G hA h0 he using regularize
   refine ⟨fun z ↦ ∏ i, G i z, Finset.univ.analyticAt_fun_prod (fun i _ ↦ hA i), ?_, ?_⟩
-  · rw [← Finset.prod_sdiff (f := fun i ↦ G i 0) (Finset.subset_univ P)]
+  · change (∏ i, G i 0) = _
+    rw [← Finset.prod_sdiff (f := fun i ↦ G i 0) (Finset.subset_univ P)]
     rw [Finset.prod_congr (s₁ := Finset.univ \ P) rfl
       (fun i hi ↦ (h0 i).trans (if_neg (Finset.mem_sdiff.mp hi).2)),
       Finset.prod_congr (s₁ := P) rfl (fun i hi ↦ (h0 i).trans (if_pos hi))]
@@ -1799,7 +1801,8 @@ theorem sLocalPrincipalPartCoeff_leading_formula (c : Xₛ) (hc : 0 < sLocalRhoP
       dsimp only [N, Function.comp_apply]
       rw [← hca, normTwist_normTwist]
     rw [he]
-    exact ((sLocalNormalizedZFunction_entire f χ) (0 + a) trivial).comp (by fun_prop)
+    exact ((sLocalNormalizedZFunction_entire f χ) (0 + a) trivial).comp
+      (show AnalyticAt ℂ (fun z : ℂ ↦ z + a) 0 from analyticAt_id.add analyticAt_const)
   have hfactor : ∀ᶠ z in 𝓝[≠] (0 : ℂ), sLocalIdelicZFunction f (twistₛ c z) =
       N z * sLocalHeckeL (twistₛ c z) := by
     have ht : Tendsto (fun z : ℂ ↦ z + a) (𝓝[≠] 0) (𝓝[≠] (0 + a)) :=
@@ -1863,7 +1866,7 @@ private theorem sLocalPrincipalPartCoeff_lower_formula_cauchy {A : ℂ → ℂ}
     simpa only [sub_zero, one_div, smul_eq_mul, div_eq_inv_mul, mul_one] using
       hd.circleIntegral_one_div_sub_center_pow_smul hr.1 j
   rw [he]
-  field_simp [Real.pi_ne_zero, Complex.I_ne_zero] <;> ring
+  field_simp [Real.pi_ne_zero, Complex.I_ne_zero]
 
 /-- Apply Leibniz's formula to the analytic numerator after removing a pole of order m.
 The two Cauchy coefficient identities use only the punctured germs. -/
@@ -1907,7 +1910,7 @@ private theorem sLocalPrincipalPartCoeff_lower_formula_product {Z ρ H : ℂ →
   have hn : (n.factorial : ℂ) ≠ 0 := by exact_mod_cast n.factorial_ne_zero
   have hj' : (j.factorial : ℂ) ≠ 0 := by exact_mod_cast j.factorial_ne_zero
   have hd : ((n - j).factorial : ℂ) ≠ 0 := by exact_mod_cast (n - j).factorial_ne_zero
-  field_simp [hn, hj', hd] <;> ring
+  field_simp [hn, hj', hd]
 
 /-- The unnormalized Fourier functional equation continued along a unitary norm chart. -/
 private theorem sLocalPrincipalPartCoeff_lower_formula_fe (χ : PontryaginDual Jₛ) (f : ℬₛ) :
