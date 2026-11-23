@@ -5,6 +5,11 @@ public import RiemannMasullo.Ch05_ThetaZSpaces.Sec5
 public import RiemannMasullo.Ch06_LocalGlobal.Sec2
 
 import Mathlib.Analysis.LocallyConvex.StrongTopology
+import RiemannMasullo.ForMathlib.Topology.Algebra.Module.OpenMapping
+import all RiemannMasullo.Ch04_PeriodicSchauderBases.Sec4
+import all RiemannMasullo.Ch02_AdelicTheta.Sec1
+import all RiemannMasullo.AppB_AnalyticNT.Sec4b
+import all RiemannMasullo.AppD_SchwartzBruhat.Sec3a_part2
 import RiemannMasullo.ForMathlib.Analysis.LocallyConvex.SeparatingDual
 import RiemannMasullo.ForMathlib.Analysis.LocallyConvex.StrongBidual
 import all RiemannMasullo.Ch05_ThetaZSpaces.Sec1
@@ -1450,6 +1455,241 @@ theorem sLocalThetaPoleBound_zero (ω : PontryaginDual J₁)
       ⟨⟨f, hf⟩, fun _ ↦ rfl⟩
     exact ((analytic f z).mpr (ha z (Set.mem_univ z))).le
 
+/-- The theta function of a representative with zero pole bound decays at every real exponent.
+A polar-free representative furnished by Remark 7.2.1.3 has the same theta function. -/
+private theorem sLocalThetaPoleBound_zero_equiv_decay_mem (ω : PontryaginDual J₁)
+    (f : ℬₛ) (hf : (Kₛ(ω)).mkQ f ∈ sLocalThetaPoleBound ω (fun _ ↦ 0)) :
+    (⇑(sLocalHomogeneousAdelicThetaLinearMap F S ω f) : Jₛ → ℂ) ∈
+      modulatedExponentialDecaySubmodule ⟨mₛ, hmₛ⟩ univ := by
+  let r (w : {w : InfinitePlace F // w.IsReal}) :
+      {e : w.val.Completion ≃+* ℝ // IsHomeomorph (e : w.val.Completion → ℝ)} :=
+    ⟨InfinitePlace.Completion.ringEquivRealOfIsReal w.property,
+      (InfinitePlace.Completion.isometryEquivRealOfIsReal w.property).toHomeomorph.isHomeomorph⟩
+  let c (w : {w : InfinitePlace F // w.IsComplex}) :
+      {e : w.val.Completion ≃+* ℂ // IsHomeomorph (e : w.val.Completion → ℂ)} :=
+    ⟨InfinitePlace.Completion.ringEquivComplexOfIsComplex w.property,
+      (InfinitePlace.Completion.isometryEquivComplexOfIsComplex w.property).toHomeomorph.isHomeomorph⟩
+  rw [sLocalThetaPoleBound_zero ω r c] at hf
+  obtain ⟨f₀, hf₀, heq⟩ := hf
+  have htheta := (sLocalHomogeneousThetaSpace_mk_eq_iff ω f₀ f).mp heq
+  rw [← htheta]
+  obtain ⟨τ, hτ⟩ := sIdeleQuotientNorm_exists_section F S
+  obtain ⟨χ, ⟨hχ, _⟩, _⟩ := existsUnique_sLocalNormSectionCharacter τ hτ ω
+  rw [← hχ]
+  exact (sLocalIdelicZFunction_entire_iff_theta_exponentialDecay χ f₀).mp
+    (sLocalIdelicZFunction_entire_of_polarFree r c f₀ hf₀ χ)
+
+/-- In split coordinates the compact character average extracts the scalar profile of an
+isotypic function. The normalization on the compact kernel makes the average equal to
+evaluation on the norm section. -/
+private theorem sLocalThetaPoleBound_zero_equiv_decay_profile (ω : PontryaginDual J₁)
+    (χ : PontryaginDual Jₛ) (τ : ℝ≥0ˣ →ₜ* Jₛ) (hτ : Function.RightInverse τ mₛ)
+    (hχ : ∀ k : J₁, χ k.val = ω k) (ht : ∀ t, χ (τ t) = 1)
+    (y : sLocalDecayIsotype (F := F) (S := S) univ ω) :
+    ∃ p : PositiveRealExponentialDecay univ, ∀ g : Jₛ,
+      p.val (Real.log ((mₛ g).val : ℝ)) = (χ g : ℂ) * y.val.val g := by
+  classical
+  let m : Jₛ →ₜ* ℝ≥0ˣ := ⟨mₛ, hmₛ⟩
+  obtain ⟨t₀, ht₀⟩ := exists_ne (1 : ℝ≥0ˣ)
+  have hm : IsModulation m :=
+    ⟨isProperMap_sIdeleQuotientNorm F S, τ t₀, (hτ t₀).trans_ne ht₀⟩
+  letI (v : S) : ProperSpace (v.val.adicCompletion F) := properSpace_adicCompletion v.val
+  letI (v : S) : SecondCountableTopology (v.val.adicCompletion F) := secondCountable_of_proper
+  letI (w : InfinitePlace F) : SecondCountableTopology w.Completion :=
+    (InfinitePlace.Completion.isometry_extensionEmbedding w).isEmbedding.secondCountableTopology
+  letI : SecondCountableTopology (InfiniteAdeleRing F) := inferInstanceAs
+    (SecondCountableTopology ((w : InfinitePlace F) → w.Completion))
+  letI : SecondCountableTopology ((v : S) → v.val.adicCompletion F) := inferInstance
+  letI : SecondCountableTopology Aₛ := inferInstanceAs
+    (SecondCountableTopology (InfiniteAdeleRing F × ((v : S) → v.val.adicCompletion F)))
+  letI : SecondCountableTopology Aₛˣ := (sIdeleGroup_description F S).1.secondCountableTopology
+  letI : LocallyCompactSpace Aₛˣ := (sIdeleGroup_description F S).2.2.1
+  have := isClosed_sProjectedDiagonal (F := F) (S := S)
+  letI : T2Space Jₛ := inferInstance
+  letI : SecondCountableTopology Jₛ := inferInstance
+  letI : LocallyCompactSpace Jₛ := inferInstance
+  letI : MeasurableSpace Jₛ := borel _
+  letI : BorelSpace Jₛ := ⟨rfl⟩
+  letI : CompactSpace J₁ := isCompact_iff_compactSpace.mp
+    ((isProperMap_sIdeleQuotientNorm F S).isCompact_preimage isCompact_singleton)
+  let K : TopologicalSpace.PositiveCompacts J₁ := ⟨⟨univ, isCompact_univ⟩, by simp⟩
+  let μ := MeasureTheory.Measure.haarMeasure K
+  letI : MeasureTheory.IsProbabilityMeasure μ := ⟨MeasureTheory.Measure.haarMeasure_self⟩
+  obtain ⟨A, _, _, hA⟩ := compactAverage_split m hm univ ordConnected_univ univ_nonempty τ hτ μ χ
+  have hcov := (mem_sLocalDecayIsotype univ ω y.val).mp y.property
+  have hsplit (g : Jₛ) : (χ g : ℂ) * y.val.val g = y.val.val (τ (mₛ g)) := by
+    let k : J₁ := ⟨g / τ (mₛ g), by simp [MonoidHom.mem_ker, hτ (mₛ g)]⟩
+    have hk : k.val⁻¹ * g = τ (mₛ g) := by change (g / τ (mₛ g))⁻¹ * g = _; group
+    have hchar : χ k.val = χ g := by change χ (g / τ (mₛ g)) = _; rw [map_div, ht, div_one]
+    simpa only [hk, ← hχ k, hchar] using (hcov k g).symm
+  refine ⟨A y.val, fun g ↦ ?_⟩
+  rw [hA, hsplit g]
+  let t := mₛ g
+  have havg (k : J₁) : (χ k.val : ℂ) * y.val.val (k.val * τ t) = y.val.val (τ t) := by
+    have ht' : mₛ (k.val * τ t) = t := by rw [map_mul, k.property, hτ, one_mul]
+    have hχ' : χ (k.val * τ t) = χ k.val := by rw [map_mul, ht, mul_one]
+    simpa only [ht', hχ'] using hsplit (k.val * τ t)
+  exact (MeasureTheory.integral_congr_ae (.of_forall havg)).trans (by simp)
+
+/-- Multiplication of a test by a character of the idele quotient factors that character
+out of the S-unit sum, since every projected diagonal S-unit has class one. -/
+private theorem sLocalThetaPoleBound_zero_equiv_decay_twist_sum (b : Xₛ)
+    (f f' : ℬₛ) (h : ∀ z : Aₛˣ, f' (Multiplicative.ofAdd z.val) =
+      b (QuotientGroup.mk z) * f (Multiplicative.ofAdd z.val)) (x : Jₛ) :
+    sLocalAdelicThetaOnClasses F S f' x = b x * sLocalAdelicThetaOnClasses F S f x := by
+  obtain ⟨z, rfl⟩ := QuotientGroup.mk_surjective x
+  rw [sLocalAdelicThetaOnClasses_mk, sLocalAdelicThetaOnClasses_mk,
+    sLocalAdelicTheta_apply, sLocalAdelicTheta_apply, ← tsum_mul_left]
+  let d := (Units.map ((adeleProjection F S).comp (integralAdelesOutside F S).subtype).toMonoidHom).comp
+    (Units.map (integralAdeleDiagonal F S).toMonoidHom)
+  apply tsum_congr
+  intro u
+  have hu : (QuotientGroup.mk (d u) : Jₛ) = 1 := (sIdeleQuotient_mk_eq_one F S _).mpr ⟨u, rfl⟩
+  have hz : (QuotientGroup.mk (d u * z) : Jₛ) = QuotientGroup.mk z := by
+    rw [QuotientGroup.mk_mul, hu, one_mul]
+  exact (h (d u * z)).trans (congrArg (fun a : Jₛ ↦ b a * f (Multiplicative.ofAdd (d u * z).val)) hz)
+
+/-- Twisting a test by the inverse of a unitary character transports its trivial homogeneous
+theta function to the restricted character isotype. -/
+private theorem sLocalThetaPoleBound_zero_equiv_decay_twist (ω : PontryaginDual J₁)
+    (χ : PontryaginDual Jₛ) (hχ : ∀ u : J₁, χ u.val = ω u) (f f' : ℬₛ)
+    (h : ∀ z : Aₛˣ, f' (Multiplicative.ofAdd z.val) =
+      ((circleToComplex).comp χ⁻¹) (QuotientGroup.mk z) * f (Multiplicative.ofAdd z.val))
+    (g : Jₛ) : sLocalHomogeneousAdelicThetaLinearMap F S ω f' g =
+      (χ g : ℂ)⁻¹ * sLocalHomogeneousAdelicThetaLinearMap F S 1 f g := by
+  letI : MeasurableSpace J₁ := borel _
+  let μ := sLocalNormOneQuotientMeasure F S
+  let b := (circleToComplex).comp χ⁻¹
+  have hfactor (u : J₁) : b (g * u.val) * (ω u : ℂ) = (χ g : ℂ)⁻¹ := by
+    change (((χ (g * u.val))⁻¹ : Circle) : ℂ) * (ω u : ℂ) = _
+    rw [map_mul, Circle.coe_inv, Circle.coe_mul, hχ]
+    field_simp [Circle.coe_ne_zero]
+  have hint (u : J₁) :
+      sLocalAdelicThetaOnClasses F S f' (g * u.val) * (ω u : ℂ) =
+      (χ g : ℂ)⁻¹ * (sLocalAdelicThetaOnClasses F S f (g * u.val) * ((1 : PontryaginDual J₁) u : ℂ)) := by
+    rw [sLocalThetaPoleBound_zero_equiv_decay_twist_sum b f f' h, mul_right_comm, hfactor]
+    change _ = _ * (_ * ((1 : Circle) : ℂ))
+    rw [Circle.coe_one, mul_one]
+  exact (sLocalHomogeneousAdelicThetaLinearMap_apply ω f' g).trans
+    ((MeasureTheory.integral_congr_ae (μ := μ) (.of_forall hint)).trans
+      ((MeasureTheory.integral_const_mul _ _).trans
+        (congrArg ((χ g : ℂ)⁻¹ * ·) (sLocalHomogeneousAdelicThetaLinearMap_apply 1 f g).symm)))
+
+/-- In the norm-one isotype, every function decaying at all real exponents admits a theta
+representative of pole bound zero. Twist the radial lift of Lemma 5.3.4.3 by the inverse
+of the unitary character trivial on the chosen norm section. -/
+private theorem sLocalThetaPoleBound_zero_equiv_decay_lift (ω : PontryaginDual J₁)
+    (y : sLocalDecayIsotype (F := F) (S := S) univ ω) :
+    ∃ f : ℬₛ, (Kₛ(ω)).mkQ f ∈ sLocalThetaPoleBound ω (fun _ ↦ 0) ∧
+      ∀ g : Jₛ, sLocalHomogeneousAdelicThetaLinearMap F S ω f g = y.val.val g := by
+  let r (w : {w : InfinitePlace F // w.IsReal}) :
+      {e : w.val.Completion ≃+* ℝ // IsHomeomorph (e : w.val.Completion → ℝ)} :=
+    ⟨InfinitePlace.Completion.ringEquivRealOfIsReal w.property,
+      (InfinitePlace.Completion.isometryEquivRealOfIsReal w.property).toHomeomorph.isHomeomorph⟩
+  let c (w : {w : InfinitePlace F // w.IsComplex}) :
+      {e : w.val.Completion ≃+* ℂ // IsHomeomorph (e : w.val.Completion → ℂ)} :=
+    ⟨InfinitePlace.Completion.ringEquivComplexOfIsComplex w.property,
+      (InfinitePlace.Completion.isometryEquivComplexOfIsComplex w.property).toHomeomorph.isHomeomorph⟩
+  obtain ⟨τ, hτ⟩ := sIdeleQuotientNorm_exists_section F S
+  obtain ⟨χ, ⟨hχ, ht⟩, _⟩ := existsUnique_sLocalNormSectionCharacter τ hτ ω
+  have hres (u : J₁) : χ u.val = ω u := DFunLike.congr_fun hχ u
+  obtain ⟨p, hp⟩ := sLocalThetaPoleBound_zero_equiv_decay_profile ω χ τ hτ hres ht y
+  obtain ⟨f, hf⟩ := sLocalHomogeneousTheta_trivial_exists_polarFree (F := F) (S := S) r c p
+  obtain ⟨M, hM⟩ := sAdelePolarFree_quasiCharacter_mul r c ((circleToComplex).comp χ⁻¹)
+  refine ⟨(M f).val, ?_, fun g ↦ ?_⟩
+  · rw [sLocalThetaPoleBound_zero ω r c]
+    exact ⟨(M f).val, (M f).property, rfl⟩
+  · rw [sLocalThetaPoleBound_zero_equiv_decay_twist ω χ hres f.val (M f).val (hM f), hf, hp]
+    exact inv_mul_cancel_left₀ (Circle.coe_ne_zero _) _
+
+/-- A homogeneous theta class has continuous point evaluations by the first coordinate
+of the Čech theta pair. -/
+private theorem sLocalThetaPoleBound_zero_equiv_decay_eval (ω : PontryaginDual J₁) (g : Jₛ) :
+    ∃ p : Θₛ(ω) → ℂ, Continuous p ∧ ∀ f : ℬₛ,
+      p ((Kₛ(ω)).mkQ f) = sLocalHomogeneousAdelicThetaLinearMap F S ω f g := by
+  obtain ⟨τ, hτ⟩ := sIdeleQuotientNorm_exists_section F S
+  obtain ⟨χ, ⟨hχ, _⟩, _⟩ := existsUnique_sLocalNormSectionCharacter τ hτ ω
+  rw [← hχ]
+  obtain ⟨U, hU, _⟩ := existsUnique_sLocalCechThetaPair (F := F) (S := S) χ
+  refine ⟨fun x ↦ (U x).1.val.val g, ?_, fun f ↦ congrFun (hU f).1 g⟩
+  have hpos : (Ioi (0 : ℝ)).Nonempty := ⟨1, zero_lt_one⟩
+  exact (continuous_modulatedExponentialDecay_eval ⟨mₛ, hmₛ⟩ _ hpos g).comp
+    (continuous_subtype_val.comp (continuous_fst.comp U.continuous))
+
+/-- A surjection from a closed subspace of a Fréchet space to a Fréchet space
+is a quotient map if its graph is closed. -/
+private theorem sLocalThetaPoleBound_quotientMap_of_closedGraph {E Y : Type*}
+    [AddCommGroup E] [Module ℂ E] [TopologicalSpace E] [IsTopologicalAddGroup E]
+    [AddCommGroup Y] [Module ℂ Y] [TopologicalSpace Y] [IsTopologicalAddGroup Y]
+    (hE : IsFrechetTVS E) (hY : IsFrechetTVS Y) (P : Submodule ℂ E)
+    (hP : IsClosed (P : Set E)) (A : P →ₗ[ℂ] Y) (hs : Function.Surjective A)
+    (hgraph : IsClosed (A.graph : Set (P × Y))) : IsQuotientMap A := by
+  obtain ⟨_, hpolE, hmetE, hcompE⟩ := hE
+  obtain ⟨_, hpolY, hmetY, hcompY⟩ := hY
+  have : ContinuousSMul ℂ E := PolynormableSpace.continuousSMul ℂ E
+  have : ContinuousSMul ℂ Y := PolynormableSpace.continuousSMul ℂ Y
+  have hc := weilTest_continuous_of_isClosed_graph
+    ⟨inferInstance, hpolE, hmetE, hcompE⟩ ⟨inferInstance, hpolY, hmetY, hcompY⟩ P hP A hgraph
+  let : UniformSpace E := IsTopologicalAddGroup.rightUniformSpace E
+  let : UniformSpace Y := IsTopologicalAddGroup.rightUniformSpace Y
+  have : IsUniformAddGroup E := isUniformAddGroup_of_addCommGroup
+  have : IsUniformAddGroup Y := isUniformAddGroup_of_addCommGroup
+  have : CompleteSpace E := hcompE
+  have : CompleteSpace Y := hcompY
+  have : CompleteSpace P := completeSpace_coe_iff_isComplete.mpr hP.isComplete
+  have : IsUniformAddGroup P := P.toAddSubgroup.isUniformAddGroup
+  have : TopologicalSpace.MetrizableSpace P :=
+    inferInstanceAs (TopologicalSpace.MetrizableSpace (P : Set E))
+  have : (uniformity Y).IsCountablyGenerated := IsUniformAddGroup.uniformity_countably_generated
+  have : BaireSpace Y := BaireSpace.of_completelyPseudoMetrizable
+  let T : P →L[ℂ] Y := ⟨A, hc⟩
+  have hopen : IsOpenMap T := by
+    apply isOpenMap_of_not_isMeagre_range
+    change ¬ IsMeagre (range A)
+    rw [hs.range_eq]
+    exact not_isMeagre_of_isOpen isOpen_univ univ_nonempty
+  exact hopen.isQuotientMap hc hs
+
+/-- The surjective pointwise theta realization is a quotient map for the two Fréchet
+topologies. Its graph is the intersection of the closed pointwise equalizers. -/
+private theorem sLocalThetaPoleBound_zero_equiv_decay_quotientMap (ω : PontryaginDual J₁)
+    (A : ↥(sLocalThetaPoleBound ω (fun _ ↦ 0)) →ₗ[ℂ]
+      ↥(sLocalDecayIsotype (F := F) (S := S) univ ω))
+    (hA : ∀ (x : ↥(sLocalThetaPoleBound ω (fun _ ↦ 0))) (f : ℬₛ),
+      x.val = (Kₛ(ω)).mkQ f → ∀ g : Jₛ,
+      (A x).val.val g = sLocalHomogeneousAdelicThetaLinearMap F S ω f g)
+    (hs : Function.Surjective A) : IsQuotientMap A := by
+  let P := sLocalThetaPoleBound ω (fun _ ↦ 0)
+  let Y := ↥(sLocalDecayIsotype (F := F) (S := S) univ ω)
+  obtain ⟨τ, hτ⟩ := sIdeleQuotientNorm_exists_section F S
+  obtain ⟨M, _, _⟩ := existsUnique_sLocalDecayMellin τ hτ univ isOpen_univ
+    (by infer_instance) univ_nonempty ω 0
+  have hY : IsFrechetTVS Y := frechet_of_equiv M.symm
+    (schwartzBergman_frechet univ isOpen_univ (by infer_instance) univ_nonempty)
+  have heval (g : Jₛ) : Continuous (fun y : Y ↦ y.val.val g) :=
+    (continuous_modulatedExponentialDecay_eval ⟨mₛ, hmₛ⟩ univ univ_nonempty g).comp
+      continuous_subtype_val
+  have hsrc (g : Jₛ) : Continuous (fun x : P ↦ (A x).val.val g) := by
+    obtain ⟨p, hp, hval⟩ := sLocalThetaPoleBound_zero_equiv_decay_eval ω g
+    refine (hp.comp continuous_subtype_val).congr fun x ↦ ?_
+    obtain ⟨f, hf⟩ := (Kₛ(ω)).mkQ_surjective x.val
+    exact (congrArg p hf.symm).trans ((hval f).trans (hA x f hf.symm g).symm)
+  apply sLocalThetaPoleBound_quotientMap_of_closedGraph (sLocalHomogeneousThetaSpace_frechet ω)
+    hY P (sLocalThetaPoleBound_isClosed ω _) A hs
+  have heq : (A.graph : Set (P × Y)) =
+      ⋂ g : Jₛ, {q : P × Y | q.2.val.val g = (A q.1).val.val g} := by
+    ext q
+    constructor
+    · intro h
+      exact mem_iInter.mpr fun g ↦
+        congrArg (fun y : Y ↦ y.val.val g) ((LinearMap.mem_graph_iff _ _).mp h)
+    · intro h
+      apply (LinearMap.mem_graph_iff _ _).mpr
+      exact Subtype.ext (Subtype.ext (funext fun g ↦ mem_iInter.mp h g))
+  rw [heq]
+  exact isClosed_iInter fun g ↦ isClosed_eq ((heval g).comp continuous_snd)
+    ((hsrc g).comp continuous_fst)
+
 /-- Paper: Remark 7.2.1.3, p. 335.
 Interpreting a polar-free theta class as its theta function identifies the entire
 subspace with the exponentially decreasing norm-one isotype, with its topology.
@@ -1459,7 +1699,54 @@ theorem sLocalThetaPoleBound_zero_equiv_decay (ω : PontryaginDual J₁) :
         ↥(sLocalDecayIsotype (F := F) (S := S) univ ω),
       ∀ (x : ↥(sLocalThetaPoleBound ω (fun _ ↦ 0))) (f : ℬₛ),
         x.val = (Kₛ(ω)).mkQ f →
-          ∀ g : Jₛ, (e x).val.val g = sLocalHomogeneousAdelicThetaLinearMap F S ω f g := by sorry
+          ∀ g : Jₛ, (e x).val.val g = sLocalHomogeneousAdelicThetaLinearMap F S ω f g := by
+  classical
+  let P := sLocalThetaPoleBound ω (fun _ ↦ 0)
+  let Y := sLocalDecayIsotype (F := F) (S := S) univ ω
+  let θ := sLocalHomogeneousAdelicThetaLinearMap F S ω
+  let L : P →ₗ[ℂ] C(Jₛ, ℂ) :=
+    θ.range.subtype.comp (θ.quotKerEquivRange.toLinearMap.comp P.subtype)
+  have hL (x : P) (f : ℬₛ) (h : x.val = θ.ker.mkQ f) : L x = θ f := by
+    change (θ.quotKerEquivRange x.val).val = θ f
+    exact (congrArg (fun z ↦ (θ.quotKerEquivRange z).val) h).trans
+      (θ.quotKerEquivRange_apply_mk f)
+  have hm (x : P) : (⇑(L x) : Jₛ → ℂ) ∈
+      modulatedExponentialDecaySubmodule ⟨mₛ, hmₛ⟩ univ := by
+    obtain ⟨f, hf⟩ := θ.ker.mkQ_surjective x.val
+    rw [hL x f hf.symm]
+    exact sLocalThetaPoleBound_zero_equiv_decay_mem ω f (hf.symm ▸ x.property)
+  let V (x : P) : Y := ⟨⟨⇑(L x), hm x⟩, by
+    apply (mem_sLocalDecayIsotype univ ω _).mpr
+    intro u g
+    obtain ⟨f, hf⟩ := θ.ker.mkQ_surjective x.val
+    change L x (u.val⁻¹ * g) = (ω u : ℂ) * L x g
+    rw [hL x f hf.symm]
+    letI : MeasurableSpace J₁ := borel _
+    have := (sLocalNormOneQuotientMeasure_normProduct (F := F) (S := S)).1
+    exact sLocalHomogeneousAdelicTheta_homogeneous F S (sLocalNormOneQuotientMeasure F S) ω f u g⟩
+  let A : P →ₗ[ℂ] Y :=
+    { toFun := V
+      map_add' := fun x y ↦ Subtype.ext (Subtype.ext (funext fun g ↦
+        congrArg (fun v : C(Jₛ, ℂ) ↦ v g) (L.map_add x y)))
+      map_smul' := fun t x ↦ Subtype.ext (Subtype.ext (funext fun g ↦
+        congrArg (fun v : C(Jₛ, ℂ) ↦ v g) (L.map_smul t x))) }
+  have hA (x : P) (f : ℬₛ) (h : x.val = θ.ker.mkQ f) (g : Jₛ) :
+      (A x).val.val g = θ f g := congrArg (fun v : C(Jₛ, ℂ) ↦ v g) (hL x f h)
+  have hi : Function.Injective A := by
+    intro x y h
+    apply Subtype.ext
+    apply θ.quotKerEquivRange.injective
+    apply Subtype.ext
+    exact ContinuousMap.ext fun g ↦ congrArg (fun v : Y ↦ v.val.val g) h
+  have hs : Function.Surjective A := by
+    intro y
+    obtain ⟨f, hf, he⟩ := sLocalThetaPoleBound_zero_equiv_decay_lift ω y
+    let x : P := ⟨θ.ker.mkQ f, hf⟩
+    exact ⟨x, Subtype.ext (Subtype.ext (funext fun g ↦ (hA x f rfl g).trans (he g)))⟩
+  let e := LinearEquiv.ofBijective A ⟨hi, hs⟩
+  have hq := sLocalThetaPoleBound_zero_equiv_decay_quotientMap ω A hA hs
+  exact ⟨ContinuousLinearEquiv.ofIsHomeomorph e
+    (isHomeomorph_iff_isQuotientMap_injective.mpr ⟨hq, hi⟩), hA⟩
 
 /-- Paper: Equation (7.2.1.12), p. 336.
 The Fourier-transformed Euler product is the Euler product at the dual character
