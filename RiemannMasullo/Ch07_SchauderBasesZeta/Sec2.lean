@@ -4,6 +4,7 @@ public import RiemannMasullo.Ch07_SchauderBasesZeta.Sec1b
 public import RiemannMasullo.Ch05_ThetaZSpaces.Sec5
 public import RiemannMasullo.Ch06_LocalGlobal.Sec2
 
+import Mathlib.Analysis.LocallyConvex.StrongTopology
 import RiemannMasullo.ForMathlib.Analysis.LocallyConvex.SeparatingDual
 import RiemannMasullo.ForMathlib.Analysis.LocallyConvex.StrongBidual
 import all RiemannMasullo.Ch05_ThetaZSpaces.Sec1
@@ -762,10 +763,10 @@ theorem sLocalThetaPoleBound_annihilator (ω : PontryaginDual J₁) (m : Xₛ �
         ∃ (c : Xₛ) (hc : onComponent(c, ω)) (k : ℕ),
           0 < sLocalRhoPoleOrder c ∧ m c < k ∧ sLocalThetaPrincipalPartCoeff ω c hc k = T
       }).topologicalClosure := by
-  have hN := sLocalHomogeneousThetaSpace_nuclear (F := F) (S := S) ω
-  letI : T2Space (Θₛ(ω)) := hN.1
-  letI : PolynormableSpace ℂ (Θₛ(ω)) := hN.2.1
-  letI : MontelSpace ℂ (Θₛ(ω)) := (sLocalHomogeneousThetaSpace_montel (F := F) (S := S) ω).2
+  have hN : IsNuclearTVS.{0} (Θₛ(ω)) := sLocalHomogeneousThetaSpace_nuclear (F := F) (S := S) ω
+  let : T2Space (Θₛ(ω)) := hN.1
+  let : PolynormableSpace ℂ (Θₛ(ω)) := hN.2.1
+  let : MontelSpace ℂ (Θₛ(ω)) := (sLocalHomogeneousThetaSpace_montel (F := F) (S := S) ω).2
   apply sLocalThetaPoleBound_annihilator_of_kernels
   intro x
   rw [mem_sLocalThetaPoleBound_iff]
@@ -1511,7 +1512,8 @@ private theorem sLocalFourierEulerProduct_eq_zeta_of_normalized (χ : Pontryagin
   apply hz'.trans
   have hFE := (sLocalNormalizedZFunction_functionalEquation f (c z)).symm.trans hM
   rw [← hFE, sLocalFourierEulerProduct]
-  field_simp [sLocalEpsilonFactor_ne_zero (c z)] <;> ring
+  field_simp [sLocalEpsilonFactor_ne_zero (c z)]
+  ring
 
 /-- Paper: Equation (7.2.1.12), p. 336.
 If an S-adelic test has the Euler product as its zeta transform on a component,
