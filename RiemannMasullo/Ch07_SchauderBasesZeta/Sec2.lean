@@ -1519,7 +1519,9 @@ private theorem sLocalThetaPoleBound_zero_equiv_decay_profile (ω : PontryaginDu
   have hcov := (mem_sLocalDecayIsotype univ ω y.val).mp y.property
   have hsplit (g : Jₛ) : (χ g : ℂ) * y.val.val g = y.val.val (τ (mₛ g)) := by
     let k : J₁ := ⟨g / τ (mₛ g), by simp [MonoidHom.mem_ker, hτ (mₛ g)]⟩
-    have hk : k.val⁻¹ * g = τ (mₛ g) := by change (g / τ (mₛ g))⁻¹ * g = _; group
+    have hk : k.val⁻¹ * g = τ (mₛ g) := by
+      change (g / τ (mₛ g))⁻¹ * g = τ (mₛ g)
+      rw [inv_div, div_mul_cancel]
     have hchar : χ k.val = χ g := by change χ (g / τ (mₛ g)) = _; rw [map_div, ht, div_one]
     simpa only [hk, ← hχ k, hchar] using (hcov k g).symm
   refine ⟨A y.val, fun g ↦ ?_⟩
@@ -1529,7 +1531,12 @@ private theorem sLocalThetaPoleBound_zero_equiv_decay_profile (ω : PontryaginDu
     have ht' : mₛ (k.val * τ t) = t := by rw [map_mul, k.property, hτ, one_mul]
     have hχ' : χ (k.val * τ t) = χ k.val := by rw [map_mul, ht, mul_one]
     simpa only [ht', hχ'] using hsplit (k.val * τ t)
-  exact (MeasureTheory.integral_congr_ae (.of_forall havg)).trans (by simp)
+  have hm1 : μ.real univ = 1 := by
+    change (μ univ).toReal = 1
+    rw [MeasureTheory.measure_univ, ENNReal.toReal_one]
+  exact (MeasureTheory.integral_congr_ae (μ := μ) (.of_forall havg)).trans
+    ((MeasureTheory.integral_const (μ := μ) (y.val.val (τ t))).trans
+      ((congrArg (fun a : ℝ ↦ a • y.val.val (τ t)) hm1).trans (one_smul ℝ _)))
 
 /-- Multiplication of a test by a character of the idele quotient factors that character
 out of the S-unit sum, since every projected diagonal S-unit has class one. -/
@@ -1573,7 +1580,7 @@ private theorem sLocalThetaPoleBound_zero_equiv_decay_twist (ω : PontryaginDual
   exact (sLocalHomogeneousAdelicThetaLinearMap_apply ω f' g).trans
     ((MeasureTheory.integral_congr_ae (μ := μ) (.of_forall hint)).trans
       ((MeasureTheory.integral_const_mul _ _).trans
-        (congrArg ((χ g : ℂ)⁻¹ * ·) (sLocalHomogeneousAdelicThetaLinearMap_apply 1 f g).symm)))
+        (congrArg ((χ g : ℂ)⁻¹ * ·) (sLocalHomogeneousAdelicThetaLinearMap_apply (F := F) (S := S) (1 : PontryaginDual J₁) f g).symm)))
 
 /-- In the norm-one isotype, every function decaying at all real exponents admits a theta
 representative of pole bound zero. Twist the radial lift of Lemma 5.3.4.3 by the inverse
@@ -1602,6 +1609,25 @@ private theorem sLocalThetaPoleBound_zero_equiv_decay_lift (ω : PontryaginDual 
   · rw [sLocalThetaPoleBound_zero_equiv_decay_twist ω χ hres f.val (M f).val (hM f), hf, hp]
     exact inv_mul_cancel_left₀ (Circle.coe_ne_zero _) _
 
+private theorem sLocalThetaPoleBound_zero_equiv_decay_pointEval (I : Set ℝ) (hI : I.Nonempty) (g : Jₛ) :
+    Continuous (fun f : ModulatedExponentialDecay (⟨mₛ, hmₛ⟩ : Jₛ →ₜ* ℝ≥0ˣ) I ↦ f.val g) := by
+  letI (v : S) : ProperSpace (v.val.adicCompletion F) := properSpace_adicCompletion v.val
+  letI (v : S) : SecondCountableTopology (v.val.adicCompletion F) := secondCountable_of_proper
+  letI (w : InfinitePlace F) : SecondCountableTopology w.Completion :=
+    (InfinitePlace.Completion.isometry_extensionEmbedding w).isEmbedding.secondCountableTopology
+  letI : SecondCountableTopology (InfiniteAdeleRing F) := inferInstanceAs
+    (SecondCountableTopology ((w : InfinitePlace F) → w.Completion))
+  letI : SecondCountableTopology ((v : S) → v.val.adicCompletion F) := inferInstance
+  letI : SecondCountableTopology Aₛ := inferInstanceAs
+    (SecondCountableTopology (InfiniteAdeleRing F × ((v : S) → v.val.adicCompletion F)))
+  letI : SecondCountableTopology Aₛˣ := (sIdeleGroup_description F S).1.secondCountableTopology
+  letI : LocallyCompactSpace Aₛˣ := (sIdeleGroup_description F S).2.2.1
+  have := isClosed_sProjectedDiagonal (F := F) (S := S)
+  letI : T2Space Jₛ := inferInstance
+  letI : SecondCountableTopology Jₛ := inferInstance
+  letI : LocallyCompactSpace Jₛ := inferInstance
+  exact continuous_modulatedExponentialDecay_eval ⟨mₛ, hmₛ⟩ I hI g
+
 /-- A homogeneous theta class has continuous point evaluations by the first coordinate
 of the Čech theta pair. -/
 private theorem sLocalThetaPoleBound_zero_equiv_decay_eval (ω : PontryaginDual J₁) (g : Jₛ) :
@@ -1613,7 +1639,7 @@ private theorem sLocalThetaPoleBound_zero_equiv_decay_eval (ω : PontryaginDual 
   obtain ⟨U, hU, _⟩ := existsUnique_sLocalCechThetaPair (F := F) (S := S) χ
   refine ⟨fun x ↦ (U x).1.val.val g, ?_, fun f ↦ congrFun (hU f).1 g⟩
   have hpos : (Ioi (0 : ℝ)).Nonempty := ⟨1, zero_lt_one⟩
-  exact (continuous_modulatedExponentialDecay_eval ⟨mₛ, hmₛ⟩ _ hpos g).comp
+  exact (sLocalThetaPoleBound_zero_equiv_decay_pointEval (Ioi 0) hpos g).comp
     (continuous_subtype_val.comp (continuous_fst.comp U.continuous))
 
 /-- A surjection from a closed subspace of a Fréchet space to a Fréchet space
@@ -1667,7 +1693,7 @@ private theorem sLocalThetaPoleBound_zero_equiv_decay_quotientMap (ω : Pontryag
   have hY : IsFrechetTVS Y := frechet_of_equiv M.symm
     (schwartzBergman_frechet univ isOpen_univ (by infer_instance) univ_nonempty)
   have heval (g : Jₛ) : Continuous (fun y : Y ↦ y.val.val g) :=
-    (continuous_modulatedExponentialDecay_eval ⟨mₛ, hmₛ⟩ univ univ_nonempty g).comp
+    (sLocalThetaPoleBound_zero_equiv_decay_pointEval univ univ_nonempty g).comp
       continuous_subtype_val
   have hsrc (g : Jₛ) : Continuous (fun x : P ↦ (A x).val.val g) := by
     obtain ⟨p, hp, hval⟩ := sLocalThetaPoleBound_zero_equiv_decay_eval ω g
@@ -1721,7 +1747,7 @@ theorem sLocalThetaPoleBound_zero_equiv_decay (ω : PontryaginDual J₁) :
     obtain ⟨f, hf⟩ := θ.ker.mkQ_surjective x.val
     change L x (u.val⁻¹ * g) = (ω u : ℂ) * L x g
     rw [hL x f hf.symm]
-    letI : MeasurableSpace J₁ := borel _
+    let : MeasurableSpace J₁ := borel _
     have := (sLocalNormOneQuotientMeasure_normProduct (F := F) (S := S)).1
     exact sLocalHomogeneousAdelicTheta_homogeneous F S (sLocalNormOneQuotientMeasure F S) ω f u g⟩
   let A : P →ₗ[ℂ] Y :=
