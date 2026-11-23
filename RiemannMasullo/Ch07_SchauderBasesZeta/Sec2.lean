@@ -1715,9 +1715,11 @@ private theorem sLocalThetaPoleBound_zero_equiv_decay_quotientMap (ω : Pontryag
     sLocalThetaPoleBound_zero_equiv_decay_pointEval ω univ univ_nonempty g
   have hsrc (g : Jₛ) : Continuous (fun x : P ↦ (A x).val.val g) := by
     obtain ⟨p, hp, hval⟩ := sLocalThetaPoleBound_zero_equiv_decay_eval ω g
-    refine (hp.comp continuous_subtype_val).congr fun x ↦ ?_
-    obtain ⟨f, hf⟩ := (Kₛ(ω)).mkQ_surjective x.val
-    exact (congrArg p hf.symm).trans ((hval f).trans (hA x f hf.symm g).symm)
+    have hpoint (x : P) : p x.val = (A x).val.val g := by
+      obtain ⟨f, hf⟩ : ∃ f : ℬₛ, (Kₛ(ω)).mkQ f = x.val :=
+        (Kₛ(ω)).mkQ_surjective (x.val : Θₛ(ω))
+      exact (congrArg p hf.symm).trans ((hval f).trans (hA x f hf.symm g).symm)
+    exact (hp.comp (continuous_subtype_val : Continuous (fun x : P ↦ x.val))).congr hpoint
   apply sLocalThetaPoleBound_quotientMap_of_closedGraph (E := Θₛ(ω)) (Y := Y)
     (sLocalHomogeneousThetaSpace_frechet ω)
     hY P (sLocalThetaPoleBound_isClosed ω _) A hs
@@ -1968,7 +1970,8 @@ private theorem sLocalPrincipalPartCoeff_leading_formula_fin_factor (c : Xₛ) (
     have he : E = D⁻¹ := by
       funext z
       dsimp only [E, finiteLocalEulerFactor]
-      rw [if_pos ((hram z).mpr h)] <;> rfl
+      rw [ite_eq_left ((hram z).mpr h)]
+      rfl
     have hD : Differentiable ℂ D := fun z ↦ (finite_den_hasDerivAt v.val η p hpn z).differentiableAt
     rw [he]
     refine ⟨(hD.analyticAt s).meromorphicNFAt.inv, ?_⟩
@@ -1986,7 +1989,7 @@ private theorem sLocalPrincipalPartCoeff_leading_formula_fin_factor (c : Xₛ) (
     · exact hneg.trans ((hD.analyticAt s).inv hz).meromorphicOrderAt_nonneg
   · have he : E = fun _ ↦ 1 := by
       funext z
-      exact if_neg (fun h' ↦ h ((hram z).mp h'))
+      exact ite_eq_right (fun h' ↦ h ((hram z).mp h'))
     rw [he]
     exact ⟨analyticAt_const.meromorphicNFAt, hneg.trans analyticAt_const.meromorphicOrderAt_nonneg⟩
 
@@ -2050,10 +2053,10 @@ private theorem sLocalPrincipalPartCoeff_leading_formula_finite_product
         filter_upwards [he] with z hz
         rw [hz, smul_eq_mul, zpow_neg_one, div_eq_mul_inv, mul_comm]
       refine ⟨G, hG, ?_, ?_⟩
-      · rw [if_pos hi, mem_sLocalThetaPoleBound_iff_residue_congr hdiv, complexResidue_div_sub hG]
+      · rw [ite_eq_left hi, mem_sLocalThetaPoleBound_iff_residue_congr hdiv, complexResidue_div_sub hG]
       · filter_upwards [hdiv, self_mem_nhdsWithin] with z hz hz0
         have hne : z ≠ 0 := hz0
-        rw [if_pos hi, hz, sub_zero]
+        rw [ite_eq_left hi, hz, sub_zero]
         field_simp
     · refine ⟨L i, (hL i).1.meromorphicOrderAt_nonneg_iff_analyticAt.mp
         (not_lt.mp (mt (hP i).mpr hi)), by simp [hi], .of_forall fun z ↦ by simp [hi]⟩
@@ -2062,8 +2065,8 @@ private theorem sLocalPrincipalPartCoeff_leading_formula_finite_product
   · change (∏ i, G i 0) = _
     rw [← Finset.prod_sdiff (f := fun i ↦ G i 0) (Finset.subset_univ P)]
     rw [Finset.prod_congr (s₁ := Finset.univ \ P) rfl
-      (fun i hi ↦ (h0 i).trans (if_neg (Finset.mem_sdiff.mp hi).2)),
-      Finset.prod_congr (s₁ := P) rfl (fun i hi ↦ (h0 i).trans (if_pos hi))]
+      (fun i hi ↦ (h0 i).trans (ite_eq_right (Finset.mem_sdiff.mp hi).2)),
+      Finset.prod_congr (s₁ := P) rfl (fun i hi ↦ (h0 i).trans (ite_eq_left hi))]
     exact mul_comm _ _
   · filter_upwards [eventually_all.mpr he] with z hz
     simp only [hz, Finset.prod_mul_distrib, Finset.prod_ite_mem_eq, Finset.prod_const]
