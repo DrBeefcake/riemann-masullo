@@ -1382,15 +1382,20 @@ private theorem sLocalFourierEulerProduct_eq_zeta_factorization (χ : Pontryagin
   intro c
   have hL : Meromorphic (fun z ↦ sLocalHeckeL (c z)) := by
     intro z
-    simpa only [inv_inv] using ((differentiable_inv_sLocalHeckeL χ).analyticAt z).meromorphicAt.inv
+    have h := ((differentiable_inv_sLocalHeckeL χ).analyticAt z).meromorphicAt.inv
+    change MeromorphicAt (fun t : ℂ ↦ ((sLocalHeckeL (c t))⁻¹)⁻¹) z at h
+    simpa only [inv_inv] using h
   apply meromorphic_eq_of_germ (fun z ↦ (sLocalIdelicZFunction_meromorphic f χ).meromorphicOn z trivial)
     (fun z ↦ ((sLocalNormalizedZFunction_entire f χ) z trivial).meromorphicAt.mul (hL z)) (z := 1)
   have hpos : ∀ᶠ z in 𝓝[≠] (1 : ℂ), 0 < z.re := nhdsWithin_le_nhds
     ((isOpen_Ioi.preimage Complex.continuous_re).mem_nhds (show (1 : ℂ) ∈ Complex.re ⁻¹' Ioi 0 by simp))
   filter_upwards [hpos, nhdsNE_le_codiscrete _ (sLocalNormalizedEigendistribution_gaussian_heckeL_ne_zero χ)]
     with z hz hne
-  rw [sLocalIdelicZFunction_eq_integral f ⟨χ, z, hz, rfl⟩, sLocalNormalizedZFunction_eq_div f χ hz,
-    div_mul_cancel₀ _ hne]
+  change sLocalIdelicZFunction f (c z) = sLocalNormalizedZFunction f (c z) * sLocalHeckeL (c z)
+  calc
+    _ = sLocalIdelicZetaIntegral f (c z) := sLocalIdelicZFunction_eq_integral f ⟨χ, z, hz, rfl⟩
+    _ = _ := ((div_mul_cancel₀ _ hne).symm).trans
+      (congrArg (· * sLocalHeckeL (c z)) (sLocalNormalizedZFunction_eq_div f χ hz).symm)
 
 private theorem sLocalFourierEulerProduct_eq_zeta_of_normalized (χ : PontryaginDual Jₛ)
     (f : ℬₛ) (M : ℂ) :
@@ -1408,9 +1413,12 @@ private theorem sLocalFourierEulerProduct_eq_zeta_of_normalized (χ : Pontryagin
   filter_upwards [ht.eventually (nhdsNE_le_codiscrete _
     (sLocalFourierEulerProduct_eq_zeta_factorization χ⁻¹ (sAdeleSchwartzFourier f)))] with z hz
   intro hM
-  have hdual := sLocal_dual_chart χ z
-  rw [← hdual] at hz
-  rw [hz, ← hM, sLocalNormalizedZFunction_functionalEquation f (c z), sLocalFourierEulerProduct]
+  have hz' := (congrArg (fun d : Xₛ ↦ sLocalIdelicZFunction (sAdeleSchwartzFourier f) d =
+    sLocalNormalizedZFunction (sAdeleSchwartzFourier f) d * sLocalHeckeL d)
+    (sLocal_dual_chart χ z)).mpr hz
+  apply hz'.trans
+  have hFE := (sLocalNormalizedZFunction_functionalEquation f (c z)).symm.trans hM
+  rw [← hFE, sLocalFourierEulerProduct]
   field_simp [sLocalEpsilonFactor_ne_zero (c z)] <;> ring
 
 /-- Paper: Equation (7.2.1.12), p. 336.
